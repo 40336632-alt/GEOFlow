@@ -81,9 +81,12 @@ class AutoGeoIntegrationService
             ];
         }
 
+        $rewritten = $result['rewritten_content'] ?? $content;
+        $rewritten = preg_replace('/<think>.*?<\/think>/s', '', $rewritten);
+
         return [
             'success' => true,
-            'content' => $result['rewritten_content'] ?? $content,
+            'content' => trim($rewritten),
             'scores' => $result['geo_scores'] ?? null,
             'error' => null,
         ];
