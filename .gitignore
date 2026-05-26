@@ -30,3 +30,6 @@ Thumbs.db
 
 # DB dump
 geo_flow
+
+# DB backups
+/backups/

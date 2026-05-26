@@ -793,11 +793,15 @@ class ArticleController extends Controller
                     'toutiao' => '今日头条',
                     'zhihu_answer' => '知乎答题',
                     'zhihu_article' => '知乎专栏',
+                    'baijia' => '百家号',
+                    'tencent' => '企鹅号',
                     default => $platform,
                 },
                 'trigger_url' => match ($platform) {
                     'toutiao' => config('app.batch_trigger_url', 'http://localhost:18433/run-supplement'),
                     'zhihu_answer', 'zhihu_article' => config('app.zhihu_trigger_url', 'http://localhost:18433/run-supplement-zhihu'),
+                    'baijia' => config('app.baijia_trigger_url', 'http://localhost:18433/run-supplement-baijia'),
+                    'tencent' => config('app.tencent_trigger_url', 'http://localhost:18433/run-supplement-tencent'),
                     default => config('app.batch_trigger_url', 'http://localhost:18433/run-supplement'),
                 },
                 'trigger_mode' => match ($platform) {
