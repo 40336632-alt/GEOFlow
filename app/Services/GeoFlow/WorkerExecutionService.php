@@ -81,7 +81,8 @@ class WorkerExecutionService
 
         $keyword = (string) ($titleRow->keyword ?? '');
         $knowledgeContext = $this->resolveKnowledgeContext($task, (string) $titleRow->title, $keyword);
-        $contentPrompt = $this->buildContentPrompt((string) $titleRow->title, $keyword, $prompt?->content, $knowledgeContext);
+        $authorInfo = $author ? trim("{$author->name} {$author->bio}") : '';
+        $contentPrompt = $this->buildContentPrompt((string) $titleRow->title, $keyword, $prompt?->content, $knowledgeContext, $authorInfo);
         $generation = $this->generateContentWithModelSelection($task, $contentPrompt);
         $aiModel = $generation['model'];
         $generatedContent = $generation['content'];
@@ -495,7 +496,7 @@ class WorkerExecutionService
     /**
      * 构造正文提示词：优先精确替换变量；无变量的自定义提示词自动补齐任务上下文。
      */
-    private function buildContentPrompt(string $title, string $keyword, ?string $promptContent, string $knowledgeContext): string
+    private function buildContentPrompt(string $title, string $keyword, ?string $promptContent, string $knowledgeContext, string $authorInfo = ''): string
     {
         $prompt = trim((string) $promptContent);
         $isFallbackPrompt = false;
@@ -509,6 +510,7 @@ class WorkerExecutionService
             'title' => $title,
             'keyword' => $keyword,
             'knowledge' => $knowledgeContext,
+            'author' => $authorInfo,
         ]);
 
         if (! $hasExplicitContextVariables) {
@@ -520,8 +522,8 @@ class WorkerExecutionService
 
     private function promptHasKnownContextVariables(string $prompt): bool
     {
-        return preg_match('/\{\{\s*(title|keyword|knowledge)\s*\}\}/iu', $prompt) === 1
-            || preg_match('/\{\{#if\s+(title|keyword|knowledge)\s*\}\}/iu', $prompt) === 1;
+        return preg_match('/\{\{\s*(title|keyword|knowledge|author)\s*\}\}/iu', $prompt) === 1
+            || preg_match('/\{\{#if\s+(title|keyword|knowledge|author)\s*\}\}/iu', $prompt) === 1;
     }
 
     /**
@@ -559,13 +561,14 @@ class WorkerExecutionService
             'title' => $context['title'],
             'keyword' => $context['keyword'],
             'knowledge' => $context['knowledge'],
+            'author' => $context['author'] ?? '',
             default => '',
         };
     }
 
     private function isKnownPromptContextName(string $name): bool
     {
-        return in_array(mb_strtolower($name, 'UTF-8'), ['title', 'keyword', 'knowledge'], true);
+        return in_array(mb_strtolower($name, 'UTF-8'), ['title', 'keyword', 'knowledge', 'author'], true);
     }
 
     private function appendSmartPromptContext(string $prompt, string $title, string $keyword, string $knowledgeContext): string
