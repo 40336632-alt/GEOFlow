@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Article;
 use App\Models\GeoOptimizationLog;
 use App\Models\GeoOptimizationRule;
 use App\Services\GeoFlow\AutoGeoIntegrationService;
@@ -10,6 +11,7 @@ use App\Support\AdminWeb;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Throwable;
 
@@ -38,19 +40,38 @@ class GeoOptimizationController extends Controller
 
         $logs = $query->paginate(20)->withQueryString();
 
-        $stats = [
+        $logStats = [
             'total' => GeoOptimizationLog::query()->count(),
             'success' => GeoOptimizationLog::query()->where('status', 'success')->count(),
             'failed' => GeoOptimizationLog::query()->whereIn('status', ['failed', 'error'])->count(),
             'avg_duration' => round((float) GeoOptimizationLog::query()->where('status', 'success')->avg('duration_seconds'), 2),
         ];
 
+        $queuePending = DB::table('jobs')->where('queue', 'geoflow')->count();
+
+        $articleStats = [
+            'pending' => Article::query()->where('status', 'draft')->whereNotNull('task_id')->whereNull('geo_optimized_at')->count(),
+            'completed' => Article::query()->whereNotNull('geo_optimized_at')->count(),
+            'total' => Article::query()->where('status', 'draft')->whereNotNull('task_id')->count(),
+        ];
+
+        $perTaskStats = Article::query()
+            ->select('task_id', DB::raw("COUNT(*) as total"), DB::raw("COUNT(*) FILTER (WHERE geo_optimized_at IS NOT NULL) as done"), DB::raw("COUNT(*) FILTER (WHERE geo_optimized_at IS NULL) as pending"))
+            ->where('status', 'draft')
+            ->whereNotNull('task_id')
+            ->groupBy('task_id')
+            ->with('task:id,name')
+            ->get();
+
         return view('admin.geo-optimization.index', [
             'pageTitle' => 'GEO优化管理',
             'activeMenu' => 'geo-optimization',
             'adminSiteName' => AdminWeb::siteName(),
             'logs' => $logs,
-            'stats' => $stats,
+            'logStats' => $logStats,
+            'articleStats' => $articleStats,
+            'perTaskStats' => $perTaskStats,
+            'queuePending' => $queuePending,
             'serviceAvailable' => $this->autoGeoService->isAvailable(),
             'filters' => [
                 'status' => $request->input('status', ''),
@@ -129,6 +150,47 @@ class GeoOptimizationController extends Controller
         } catch (Throwable $e) {
             return back()->withErrors($e->getMessage());
         }
+    }
+
+    /**
+     * GEO优化进度 AJAX。
+     */
+    public function progress(): JsonResponse
+    {
+        $queuePending = DB::table('jobs')->where('queue', 'geoflow')->count();
+
+        $articleStats = [
+            'pending' => Article::query()->where('status', 'draft')->whereNotNull('task_id')->whereNull('geo_optimized_at')->count(),
+            'completed' => Article::query()->whereNotNull('geo_optimized_at')->count(),
+            'total' => Article::query()->where('status', 'draft')->whereNotNull('task_id')->count(),
+        ];
+
+        $logStats = [
+            'total' => GeoOptimizationLog::query()->count(),
+            'success' => GeoOptimizationLog::query()->where('status', 'success')->count(),
+            'failed' => GeoOptimizationLog::query()->whereIn('status', ['failed', 'error'])->count(),
+        ];
+
+        $recentLogs = GeoOptimizationLog::query()
+            ->with(['article:id,title'])
+            ->orderByDesc('id')
+            ->limit(5)
+            ->get()
+            ->map(fn ($log) => [
+                'id' => $log->id,
+                'article_title' => $log->article?->title,
+                'status' => $log->status,
+                'score' => $log->geo_scores['geo_score'] ?? null,
+                'duration' => $log->duration_seconds,
+                'created_at' => $log->created_at?->format('H:i:s'),
+            ]);
+
+        return response()->json([
+            'queue_pending' => $queuePending,
+            'article_stats' => $articleStats,
+            'log_stats' => $logStats,
+            'recent_logs' => $recentLogs,
+        ]);
     }
 
     /**

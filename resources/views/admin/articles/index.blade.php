@@ -298,6 +298,8 @@
                                 @else
                                     <option value="batch_update_status">{{ __('admin.articles.bulk.status_to') }}</option>
                                     <option value="batch_update_review">{{ __('admin.articles.bulk.review_to') }}</option>
+                                    <option value="batch_geo_optimize">GEO 优化</option>
+                                    <option value="batch_supplement_publish">补发</option>
                                     <option value="delete_articles">{{ __('admin.articles.bulk.delete') }}</option>
                                 @endif
                             </select>

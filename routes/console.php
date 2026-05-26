@@ -16,6 +16,7 @@ Artisan::command('inspire', function () {
  * Horizon 监控快照：用于沉淀队列吞吐、等待等时序指标。
  */
 Schedule::command('horizon:snapshot')->everyFiveMinutes();
+Schedule::command('profiles:reset-daily-limit')->dailyAt('00:00');
 
 /**
  * GeoFlow 任务调度：每分钟扫描一次可执行任务并入队（对齐 bak cron 逻辑）。

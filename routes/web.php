@@ -127,6 +127,7 @@ Route::prefix($adminPrefix)->name('admin.')->middleware(['admin.locale'])->group
             Route::post('rules/{ruleId}/toggle', [GeoOptimizationController::class, 'toggleRule'])->name('rules.toggle')->whereNumber('ruleId');
             Route::post('rules/{ruleId}/delete', [GeoOptimizationController::class, 'destroyRule'])->name('rules.delete')->whereNumber('ruleId');
             Route::get('health', [GeoOptimizationController::class, 'healthCheck'])->name('health');
+            Route::get('progress', [GeoOptimizationController::class, 'progress'])->name('progress');
         });
 
         // 文章管理（Blade 新路径）
@@ -135,6 +136,8 @@ Route::prefix($adminPrefix)->name('admin.')->middleware(['admin.locale'])->group
             Route::post('batch/update-status', [ArticleController::class, 'batchUpdateStatus'])->name('batch.update-status');
             Route::post('batch/update-review', [ArticleController::class, 'batchUpdateReview'])->name('batch.update-review');
             Route::post('batch/delete', [ArticleController::class, 'batchDelete'])->name('batch.delete');
+            Route::post('batch/geo-optimize', [ArticleController::class, 'batchGeoOptimize'])->name('batch.geo-optimize');
+            Route::post('batch/supplement-publish', [ArticleController::class, 'batchSupplementPublish'])->name('batch.supplement-publish');
             Route::post('batch/restore', [ArticleController::class, 'batchRestore'])->name('batch.restore');
             Route::post('batch/force-delete', [ArticleController::class, 'batchForceDelete'])->name('batch.force-delete');
             Route::post('trash/empty', [ArticleController::class, 'emptyTrash'])->name('trash.empty');
@@ -269,6 +272,9 @@ Route::prefix($adminPrefix)->name('admin.')->middleware(['admin.locale'])->group
             Route::post('generate', [TuozhanController::class, 'generate'])->name('generate');
             Route::post('save', [TuozhanController::class, 'save'])->name('save');
         });
+
+        // 发布看板
+        Route::get('publish-dashboard', [PublishTaskController::class, 'dashboard'])->name('publish.dashboard');
 
         // 浏览器账号管理
         Route::prefix('browser-profiles')->name('browser-profiles.')->group(function () {

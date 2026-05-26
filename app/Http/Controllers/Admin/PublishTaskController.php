@@ -4,11 +4,15 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Article;
+use App\Models\BatchPublishLog;
 use App\Models\BrowserProfile;
 use App\Models\PublishLog;
 use App\Models\PublishTask;
 use App\Services\ToutiaoPublisherService;
+use App\Support\AdminWeb;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PublishTaskController extends Controller
 {
@@ -17,6 +21,119 @@ class PublishTaskController extends Controller
     public function __construct(ToutiaoPublisherService $publisherService)
     {
         $this->publisherService = $publisherService;
+    }
+
+    public function dashboard()
+    {
+        $userId = auth('admin')->id();
+
+        $profiles = BrowserProfile::where('user_id', $userId)
+            ->orderBy('status')
+            ->orderBy('platform')
+            ->get()
+            ->map(function ($p) {
+                $isToday = $p->last_used_at && $p->last_used_at->isToday();
+                $todayBatch = BatchPublishLog::query()
+                    ->where('account_name', $p->account_name)
+                    ->whereDate('created_at', today())
+                    ->where('status', 'submitted')
+                    ->count();
+                $todayPublished = max($todayBatch, $isToday ? $p->today_published : 0);
+                return [
+                    'id' => $p->id,
+                    'platform' => $p->platform,
+                    'platform_label' => BrowserProfile::PLATFORMS[$p->platform] ?? $p->platform,
+                    'account_name' => $p->account_name ?? '-',
+                    'profile_name' => $p->profile_name ?? '-',
+                    'daily_limit' => $p->daily_limit,
+                    'today_published' => $todayPublished,
+                    'remaining' => max(0, $p->daily_limit - $todayPublished),
+                    'status' => $p->status,
+                    'last_used_at' => $p->last_used_at,
+                ];
+            });
+
+        $today = Carbon::today();
+        $todayPublishes = PublishTask::where('user_id', $userId)
+            ->whereDate('published_at', $today)
+            ->where('status', 'completed')
+            ->count();
+
+        $pendingTasks = PublishTask::where('user_id', $userId)
+            ->where('status', 'pending')
+            ->count();
+
+        $todayFailed = PublishTask::where('user_id', $userId)
+            ->whereDate('created_at', $today)
+            ->where('status', 'failed')
+            ->count();
+
+        $totalSlots = $profiles->sum('daily_limit');
+        $usedSlots = $profiles->sum('today_published');
+        $remainingSlots = $totalSlots - $usedSlots;
+
+        $recentTasks = PublishTask::with(['article:id,title', 'profile:id,account_name'])
+            ->where('user_id', $userId)
+            ->orderByDesc('created_at')
+            ->limit(20)
+            ->get();
+
+        $todayBatchPublishes = BatchPublishLog::query()
+            ->whereDate('created_at', $today)
+            ->where('status', 'submitted')
+            ->count();
+
+        $recentBatchLogs = BatchPublishLog::query()
+            ->select('batch_publish_logs.*')
+            ->selectRaw('(SELECT deleted_at IS NOT NULL FROM articles WHERE articles.id = batch_publish_logs.article_id) as article_deleted')
+            ->selectRaw('(SELECT review_status FROM articles WHERE articles.id = batch_publish_logs.article_id) as article_review_status')
+            ->orderByDesc('batch_publish_logs.id')
+            ->limit(20)
+            ->get();
+
+        $weeklyBatchStats = collect(range(6, 0))->map(function ($daysAgo) {
+            $date = Carbon::today()->subDays($daysAgo);
+            $count = BatchPublishLog::query()
+                ->whereDate('created_at', $date)
+                ->where('status', 'submitted')
+                ->count();
+            return [
+                'date' => $date->format('m-d'),
+                'label' => $daysAgo === 0 ? '今天' : ($daysAgo === 1 ? '昨天' : $date->format('m-d')),
+                'count' => $count,
+            ];
+        });
+
+        $weeklyStats = collect(range(6, 0))->map(function ($daysAgo) use ($userId) {
+            $date = Carbon::today()->subDays($daysAgo);
+            $count = PublishTask::where('user_id', $userId)
+                ->whereDate('published_at', $date)
+                ->where('status', 'completed')
+                ->count();
+            return [
+                'date' => $date->format('m-d'),
+                'label' => $daysAgo === 0 ? '今天' : ($daysAgo === 1 ? '昨天' : $date->format('m-d')),
+                'count' => $count,
+            ];
+        });
+
+        return view('admin.publish.dashboard', [
+            'pageTitle' => '发布看板',
+            'activeMenu' => 'distribution',
+            'adminSiteName' => AdminWeb::siteName(),
+            'profiles' => $profiles,
+            'todayPublishes' => $todayPublishes,
+            'todayBatchPublishes' => $todayBatchPublishes,
+            'pendingTasks' => $pendingTasks,
+            'todayFailed' => $todayFailed,
+            'totalSlots' => $totalSlots,
+            'usedSlots' => $usedSlots,
+            'remainingSlots' => $remainingSlots,
+            'recentTasks' => $recentTasks,
+            'recentBatchLogs' => $recentBatchLogs,
+            'weeklyStats' => $weeklyStats,
+            'weeklyBatchStats' => $weeklyBatchStats,
+        ]);
     }
 
     public function index(Request $request)

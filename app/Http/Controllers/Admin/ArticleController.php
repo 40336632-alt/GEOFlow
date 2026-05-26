@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\ProcessGeoOptimizationJob;
 use App\Models\Article;
 use App\Models\Author;
+use App\Models\BrowserProfile;
 use App\Models\Category;
 use App\Models\Task;
+use App\Services\GeoFlow\AutoGeoIntegrationService;
 use App\Services\GeoFlow\DistributionOrchestrator;
 use App\Support\AdminWeb;
 use App\Support\GeoFlow\ArticleWorkflow;
@@ -26,7 +29,10 @@ use Throwable;
  */
 class ArticleController extends Controller
 {
-    public function __construct(private readonly DistributionOrchestrator $distributionOrchestrator) {}
+    public function __construct(
+        private readonly DistributionOrchestrator $distributionOrchestrator,
+        private readonly AutoGeoIntegrationService $autoGeoService,
+    ) {}
 
     /**
      * 文章管理首页：渲染筛选与列表。
@@ -728,6 +734,93 @@ class ArticleController extends Controller
         ];
     }
 
+    public function batchGeoOptimize(Request $request): RedirectResponse
+    {
+        $articleIds = $this->extractArticleIds($request);
+        if (empty($articleIds)) {
+            return back()->withErrors(__('admin.articles.message.select_articles'));
+        }
+
+        if (!$this->autoGeoService->isAvailable()) {
+            return back()->withErrors('AutoGEO 服务未运行，请先启动');
+        }
+
+        $count = 0;
+        $articles = Article::query()->whereKey($articleIds)->where('status', 'draft')->get();
+
+        foreach ($articles as $article) {
+            dispatch(new ProcessGeoOptimizationJob(
+                articleId: $article->id,
+                dataset: $article->task?->geo_dataset ?? 'medical',
+                engineLlm: $article->task?->geo_engine_llm ?? 'openai',
+            ))->onQueue('geoflow');
+            $count++;
+        }
+
+        return redirect()->route('admin.geo-optimization.index')->with('success', "已提交 {$count} 篇 GEO 优化任务到队列，看板将实时显示进度");
+    }
+
+    public function batchSupplementPublish(Request $request): View|RedirectResponse
+    {
+        $articleIds = $this->extractArticleIds($request);
+        if (empty($articleIds)) {
+            return back()->withErrors(__('admin.articles.message.select_articles'));
+        }
+
+        $articles = Article::query()
+            ->whereIn('id', $articleIds)
+            ->whereNull('deleted_at')
+            ->get(['id', 'title', 'task_id']);
+
+        $inventory = Article::query()
+            ->where('status', 'draft')
+            ->where('review_status', 'pending')
+            ->whereNull('deleted_at')
+            ->selectRaw('task_id, COUNT(*) as count')
+            ->groupBy('task_id')
+            ->pluck('count', 'task_id');
+
+        $accounts = BrowserProfile::query()
+            ->where('status', 'authorized')
+            ->orderBy('platform')
+            ->orderBy('account_name')
+            ->get();
+
+        $platforms = $accounts->groupBy('platform')->map(function ($group, $platform) {
+            return [
+                'platform' => $platform,
+                'label' => match ($platform) {
+                    'toutiao' => '今日头条',
+                    'zhihu_answer' => '知乎答题',
+                    'zhihu_article' => '知乎专栏',
+                    default => $platform,
+                },
+                'trigger_url' => match ($platform) {
+                    'toutiao' => config('app.batch_trigger_url', 'http://localhost:18433/run-supplement'),
+                    'zhihu_answer', 'zhihu_article' => config('app.zhihu_trigger_url', 'http://localhost:18433/run-supplement-zhihu'),
+                    default => config('app.batch_trigger_url', 'http://localhost:18433/run-supplement'),
+                },
+                'trigger_mode' => match ($platform) {
+                    'zhihu_answer' => 'answer',
+                    'zhihu_article' => 'article',
+                    default => null,
+                },
+                'accounts' => $group,
+            ];
+        })->values();
+
+        $tasks = Task::query()->whereIn('id', $inventory->keys())->get(['id', 'name'])->keyBy('id');
+
+        return view('admin.articles.supplement-publish', [
+            'pageTitle' => '补发文章',
+            'activeMenu' => 'articles',
+            'articles' => $articles,
+            'platforms' => $platforms,
+            'inventory' => $inventory,
+            'tasks' => $tasks,
+        ]);
+    }
+
     /**
      * 批量操作表单提交目标 URL（普通列表与垃圾箱不同）。
      *
@@ -746,6 +839,8 @@ class ArticleController extends Controller
             'batch_update_status' => route('admin.articles.batch.update-status'),
             'batch_update_review' => route('admin.articles.batch.update-review'),
             'delete_articles' => route('admin.articles.batch.delete'),
+            'batch_geo_optimize' => route('admin.articles.batch.geo-optimize'),
+            'batch_supplement_publish' => route('admin.articles.batch.supplement-publish'),
         ];
     }
 }

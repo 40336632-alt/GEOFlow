@@ -30,6 +30,14 @@ Route::prefix('v1')
             Route::get('next-article', [PublishBatchController::class, 'nextArticle']);
             Route::post('mark-published', [PublishBatchController::class, 'markPublished']);
             Route::post('mark-failed', [PublishBatchController::class, 'markFailed']);
+            Route::post('log', [PublishBatchController::class, 'logPublish']);
+            Route::get('logs', [PublishBatchController::class, 'batchLogs']);
+            Route::get('accounts', [PublishBatchController::class, 'accounts']);
+            Route::get('articles-by-task', [PublishBatchController::class, 'articlesByTask']);
+            Route::post('supplement', [PublishBatchController::class, 'supplement']);
+            Route::post('soft-delete', [PublishBatchController::class, 'softDelete']);
+            Route::post('force-delete-article', [PublishBatchController::class, 'forceDeleteArticle']);
+            Route::post('mark-log-verified', [PublishBatchController::class, 'markLogVerified']);
         });
 
         // 需有效 Token + 对应 scope
