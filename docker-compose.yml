@@ -45,6 +45,7 @@ services:
       AUTO_INIT_ONCE: "true"
     volumes:
       - ./:/var/www/html
+      - G:/ToutiaoPublisher:/opt/toutiao-publisher
     depends_on:
       postgres:
         condition: service_healthy
@@ -69,6 +70,7 @@ services:
       - "${APP_PORT:-18080}:8080"
     volumes:
       - ./:/var/www/html
+      - G:/ToutiaoPublisher:/opt/toutiao-publisher
     depends_on:
       init:
         condition: service_completed_successfully
@@ -89,6 +91,7 @@ services:
     command: ["php", "artisan", "queue:work", "redis", "--queue=geoflow,distribution,default", "--sleep=1", "--tries=1", "--timeout=300"]
     volumes:
       - ./:/var/www/html
+      - G:/ToutiaoPublisher:/opt/toutiao-publisher
     depends_on:
       init:
         condition: service_completed_successfully
@@ -109,6 +112,7 @@ services:
     command: ["php", "artisan", "schedule:work"]
     volumes:
       - ./:/var/www/html
+      - G:/ToutiaoPublisher:/opt/toutiao-publisher
     depends_on:
       init:
         condition: service_completed_successfully
@@ -131,6 +135,7 @@ services:
       - "${REVERB_EXPOSE_PORT:-18081}:8080"
     volumes:
       - ./:/var/www/html
+      - G:/ToutiaoPublisher:/opt/toutiao-publisher
     depends_on:
       init:
         condition: service_completed_successfully

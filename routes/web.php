@@ -18,15 +18,27 @@ use App\Http\Controllers\Admin\AuthorController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DistributionController;
+use App\Http\Controllers\Admin\GeoOptimizationController;
 use App\Http\Controllers\Admin\ImageLibraryController;
 use App\Http\Controllers\Admin\KeywordLibraryController;
 use App\Http\Controllers\Admin\KnowledgeBaseController;
 use App\Http\Controllers\Admin\LegacyController;
+use App\Http\Controllers\Admin\WritingInstructionController;
+use App\Http\Controllers\Admin\WritingTaskController;
+use App\Http\Controllers\Admin\ViralReplicationController;
+use App\Http\Controllers\Admin\IndexCheckController;
+use App\Http\Controllers\Admin\AiKeywordExpandController;
+use App\Http\Controllers\Admin\BrowserProfileController;
+use App\Http\Controllers\Admin\PublishTaskController;
+use App\Http\Controllers\Admin\DiagnosisController;
+use App\Http\Controllers\Admin\SeoController;
+use App\Http\Controllers\Admin\WorkflowGuideController;
 use App\Http\Controllers\Admin\MaterialsController;
 use App\Http\Controllers\Admin\SecuritySettingsController;
 use App\Http\Controllers\Admin\SiteSettingsController;
 use App\Http\Controllers\Admin\TaskController;
 use App\Http\Controllers\Admin\TitleLibraryController;
+use App\Http\Controllers\Admin\TuozhanController;
 use App\Http\Controllers\Admin\UrlImportController;
 use App\Http\Controllers\Site\ArchiveController;
 use App\Http\Controllers\Site\ArticleController as SiteArticleController;
@@ -69,6 +81,7 @@ Route::prefix($adminPrefix)->name('admin.')->middleware(['admin.locale'])->group
         Route::post('logout', [AdminAuthController::class, 'logout'])->name('logout');
         Route::post('welcome/dismiss', [AdminWelcomeController::class, 'dismiss'])->name('welcome.dismiss');
         Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        Route::get('workflow', [WorkflowGuideController::class, 'index'])->name('workflow');
         Route::get('analytics', [AnalyticsController::class, 'index'])->name('analytics');
 
         // 任务管理（Blade 新路径）
@@ -104,6 +117,16 @@ Route::prefix($adminPrefix)->name('admin.')->middleware(['admin.locale'])->group
             Route::post('{channelId}/sync-settings', [DistributionController::class, 'syncSettings'])->name('sync-settings')->whereNumber('channelId');
             Route::get('{channelId}', [DistributionController::class, 'show'])->name('show')->whereNumber('channelId');
             Route::post('{channelId}/health', [DistributionController::class, 'health'])->name('health')->whereNumber('channelId');
+        });
+
+        // GEO优化管理
+        Route::prefix('geo-optimization')->name('geo-optimization.')->group(function () {
+            Route::get('/', [GeoOptimizationController::class, 'index'])->name('index');
+            Route::get('rules', [GeoOptimizationController::class, 'rules'])->name('rules');
+            Route::post('rules', [GeoOptimizationController::class, 'storeRule'])->name('rules.store');
+            Route::post('rules/{ruleId}/toggle', [GeoOptimizationController::class, 'toggleRule'])->name('rules.toggle')->whereNumber('ruleId');
+            Route::post('rules/{ruleId}/delete', [GeoOptimizationController::class, 'destroyRule'])->name('rules.delete')->whereNumber('ruleId');
+            Route::get('health', [GeoOptimizationController::class, 'healthCheck'])->name('health');
         });
 
         // 文章管理（Blade 新路径）
@@ -201,6 +224,101 @@ Route::prefix($adminPrefix)->name('admin.')->middleware(['admin.locale'])->group
             Route::put('{knowledgeBaseId}/detail', [KnowledgeBaseController::class, 'updateFromDetail'])->name('detail.update');
             Route::put('{knowledgeBaseId}', [KnowledgeBaseController::class, 'update'])->name('update');
             Route::post('{knowledgeBaseId}/delete', [KnowledgeBaseController::class, 'destroy'])->name('delete');
+        });
+
+        // 写作指令管理
+        Route::resource('writing-instructions', WritingInstructionController::class)->except(['show']);
+
+        // 写作任务管理
+        Route::prefix('writing-tasks')->name('writing-tasks.')->group(function () {
+            Route::get('/', [WritingTaskController::class, 'index'])->name('index');
+            Route::get('create', [WritingTaskController::class, 'create'])->name('create');
+            Route::post('/', [WritingTaskController::class, 'store'])->name('store');
+            Route::get('{writingTask}', [WritingTaskController::class, 'show'])->name('show');
+            Route::post('{writingTask}/execute', [WritingTaskController::class, 'execute'])->name('execute');
+            Route::delete('{writingTask}', [WritingTaskController::class, 'destroy'])->name('destroy');
+        });
+
+        // 流量复刻管理
+        Route::prefix('viral-replication')->name('viral.')->group(function () {
+            Route::get('/', [ViralReplicationController::class, 'index'])->name('index');
+            Route::post('/', [ViralReplicationController::class, 'store'])->name('store');
+            Route::get('batch', [ViralReplicationController::class, 'batch'])->name('batch');
+            Route::post('batch', [ViralReplicationController::class, 'batchStore'])->name('batchStore');
+            Route::delete('{viralReplication}', [ViralReplicationController::class, 'destroy'])->name('destroy');
+        });
+
+        // AI收录查询
+        Route::prefix('index-check')->name('index-check.')->group(function () {
+            Route::get('/', [IndexCheckController::class, 'index'])->name('index');
+            Route::get('create', [IndexCheckController::class, 'create'])->name('create');
+            Route::post('/', [IndexCheckController::class, 'store'])->name('store');
+            Route::get('{indexCheck}', [IndexCheckController::class, 'show'])->name('show');
+            Route::delete('{indexCheck}', [IndexCheckController::class, 'destroy'])->name('destroy');
+        });
+
+        // AI智能拓词
+        Route::prefix('ai-expand')->name('ai-expand.')->group(function () {
+            Route::get('/', [AiKeywordExpandController::class, 'index'])->name('index');
+            Route::post('/', [AiKeywordExpandController::class, 'expand'])->name('expand');
+        });
+
+        // 参考站拓词工具
+        Route::prefix('tuozhan')->name('tuozhan.')->group(function () {
+            Route::get('/', [TuozhanController::class, 'index'])->name('index');
+            Route::post('generate', [TuozhanController::class, 'generate'])->name('generate');
+            Route::post('save', [TuozhanController::class, 'save'])->name('save');
+        });
+
+        // 浏览器账号管理
+        Route::prefix('browser-profiles')->name('browser-profiles.')->group(function () {
+            Route::get('/', [BrowserProfileController::class, 'index'])->name('index');
+            Route::get('create', [BrowserProfileController::class, 'create'])->name('create');
+            Route::post('/', [BrowserProfileController::class, 'store'])->name('store');
+            Route::get('{browserProfile}/edit', [BrowserProfileController::class, 'edit'])->name('edit');
+            Route::put('{browserProfile}', [BrowserProfileController::class, 'update'])->name('update');
+            Route::delete('{browserProfile}', [BrowserProfileController::class, 'destroy'])->name('destroy');
+            Route::get('sync', [BrowserProfileController::class, 'sync'])->name('sync');
+        });
+
+        // 发布任务管理
+        Route::prefix('publish-tasks')->name('publish-tasks.')->group(function () {
+            Route::get('/', [PublishTaskController::class, 'index'])->name('index');
+            Route::get('create', [PublishTaskController::class, 'create'])->name('create');
+            Route::post('/', [PublishTaskController::class, 'store'])->name('store');
+            Route::get('{publishTask}', [PublishTaskController::class, 'show'])->name('show');
+            Route::post('{publishTask}/execute', [PublishTaskController::class, 'execute'])->name('execute');
+            Route::delete('{publishTask}', [PublishTaskController::class, 'destroy'])->name('destroy');
+        });
+
+        // AI可见度诊断
+        Route::prefix('diagnosis')->name('diagnosis.')->group(function () {
+            Route::get('/', [DiagnosisController::class, 'index'])->name('index');
+            Route::get('create', [DiagnosisController::class, 'create'])->name('create');
+            Route::post('/', [DiagnosisController::class, 'store'])->name('store');
+            Route::get('{diagnosisTask}', [DiagnosisController::class, 'show'])->name('show');
+            Route::post('{diagnosisTask}/execute', [DiagnosisController::class, 'execute'])->name('execute');
+            Route::delete('{diagnosisTask}', [DiagnosisController::class, 'destroy'])->name('destroy');
+            Route::get('{diagnosisTask}/report', [DiagnosisController::class, 'report'])->name('report');
+        });
+
+        // AI官网SEO - 站点管理
+        Route::prefix('seo/sites')->name('seo.sites.')->group(function () {
+            Route::get('/', [SeoController::class, 'sites'])->name('index');
+            Route::get('create', [SeoController::class, 'createSite'])->name('create');
+            Route::post('/', [SeoController::class, 'storeSite'])->name('store');
+            Route::get('{seoSite}/edit', [SeoController::class, 'editSite'])->name('edit');
+            Route::put('{seoSite}', [SeoController::class, 'updateSite'])->name('update');
+            Route::delete('{seoSite}', [SeoController::class, 'destroySite'])->name('destroy');
+        });
+
+        // AI官网SEO - 发布任务
+        Route::prefix('seo/tasks')->name('seo.tasks.')->group(function () {
+            Route::get('/', [SeoController::class, 'tasks'])->name('index');
+            Route::get('create', [SeoController::class, 'createTask'])->name('create');
+            Route::post('/', [SeoController::class, 'storeTask'])->name('store');
+            Route::post('{seoPublishTask}/execute', [SeoController::class, 'executeTask'])->name('execute');
+            Route::delete('{seoPublishTask}', [SeoController::class, 'destroyTask'])->name('destroy');
         });
 
         // 业务页面

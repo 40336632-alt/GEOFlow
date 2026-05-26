@@ -22,6 +22,7 @@ class Article extends Model
         'category_id',
         'author_id',
         'task_id',
+        'writing_task_id',
         'original_keyword',
         'keywords',
         'meta_description',
@@ -31,6 +32,9 @@ class Article extends Model
         'is_ai_generated',
         'is_hot',
         'is_featured',
+        'geo_scores',
+        'geo_original_content',
+        'geo_optimized_at',
         'published_at',
     ];
 
@@ -40,10 +44,13 @@ class Article extends Model
             'category_id' => 'integer',
             'author_id' => 'integer',
             'task_id' => 'integer',
+            'writing_task_id' => 'integer',
             'view_count' => 'integer',
             'is_ai_generated' => 'integer',
             'is_hot' => 'boolean',
             'is_featured' => 'boolean',
+            'geo_scores' => 'array',
+            'geo_optimized_at' => 'datetime',
             'published_at' => 'datetime',
         ];
     }
@@ -56,6 +63,11 @@ class Article extends Model
     public function author(): BelongsTo
     {
         return $this->belongsTo(Author::class, 'author_id');
+    }
+
+    public function writingTask(): BelongsTo
+    {
+        return $this->belongsTo(WritingTask::class, 'writing_task_id');
     }
 
     public function task(): BelongsTo

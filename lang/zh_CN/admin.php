@@ -2183,6 +2183,8 @@ return [
             'category_desc' => '配置文章的分类分配方式',
             'advanced_title' => '高级设置',
             'advanced_desc' => '配置任务执行的高级参数',
+            'geo_title' => 'GEO优化配置',
+            'geo_desc' => '配置AutoGEO内容优化引擎，提升AI搜索引擎引用率',
         ],
         'field' => [
             'task_name' => '任务名称',
@@ -2204,6 +2206,9 @@ return [
             'article_limit' => '文章总数上限',
             'draft_limit' => '草稿池上限',
             'loop_mode' => '循环生成',
+            'enable_geo_optimization' => '启用GEO优化',
+            'geo_dataset' => 'GEO数据集',
+            'geo_engine_llm' => 'GEO优化引擎',
         ],
         'placeholder' => [
             'task_name' => '例如：科技资讯自动生成任务',
@@ -2229,6 +2234,10 @@ return [
             'category_random' => '随机分类模式',
             'select_category' => '请选择分类',
             'categories_load_failed' => '获取分类失败',
+            'geo_dataset_default' => '默认（通用规则）',
+            'geo_dataset_medical' => '医疗健康',
+            'geo_dataset_ecommerce' => '电商产品',
+            'geo_dataset_research' => '学术研究',
         ],
         'help' => [
             'knowledge_base' => '选择后，系统会从知识库中检索与标题/关键词最相关的片段，并注入正文提示词的 <code>{{Knowledge}}</code>。',
@@ -2247,6 +2256,10 @@ return [
             'draft_limit' => '草稿池最多保留多少篇未发布文章；达到上限后暂停生成，等待发布或审核后继续补充',
             'loop_mode' => '当所选择的标题库用完后，是否自动重复执行原标题库里的标题',
             'no_categories_configured' => '当前还没有可用分类。请先创建至少一个分类，再回来创建任务。',
+            'enable_geo_optimization' => '启用后，AI生成的内容将通过AutoGEO引擎进行GEO优化，提升在AI搜索引擎中的引用率',
+            'geo_dataset' => '选择内容所属领域，系统将使用对应领域的优化规则',
+            'geo_engine_llm' => '选择用于内容优化的LLM引擎，不同引擎效果可能不同',
+            'geo_info' => 'GEO（Generative Engine Optimization）优化会重写内容，使其更容易被AI搜索引擎引用。需要先启动AutoGEO微服务（端口5000）。',
         ],
         'preview' => [
             'categories_title' => '当前可用分类',
@@ -2264,6 +2277,10 @@ return [
             'scope_distribution_only_desc' => '本地保留私有副本用于管理，前台不展示；目标渠道站点生成公开页面。',
             'scope_local_only' => '仅发布到本站',
             'scope_local_only_desc' => '文章只在 GEOFlow 本站发布，不进入远程分发队列。',
+        ],
+        'geo' => [
+            'title' => 'GEO优化配置',
+            'desc' => '配置AutoGEO内容优化引擎，提升AI搜索引擎引用率',
         ],
         'message' => [
             'created' => '任务创建成功！',

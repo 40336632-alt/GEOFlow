@@ -1,22 +1,6 @@
 <?php
 
-/**
- * 第三方服务凭证占位（Mail/Postmark/SES/Resend/Slack 等）。
- */
-
 return [
-
-    /*
-    |--------------------------------------------------------------------------
-    | Third Party Services
-    |--------------------------------------------------------------------------
-    |
-    | This file is for storing the credentials for third party services such
-    | as Mailgun, Postmark, AWS and more. This file provides the de facto
-    | location for this type of information, allowing packages to have
-    | a conventional file to locate the various service credentials.
-    |
-    */
 
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
@@ -37,6 +21,25 @@ return [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
+    ],
+
+    'ai' => [
+        'api_url' => env('AI_API_URL', 'https://api.minimax.chat/v1'),
+        'api_key' => env('AI_API_KEY', ''),
+        'model' => env('AI_MODEL', 'MiniMax-M2.7'),
+    ],
+
+    'autogeo' => [
+        'url' => env('AUTOGEO_URL', 'http://localhost:5000'),
+    ],
+
+    'bitbrowser' => [
+        'url' => env('BITBROWSER_URL', 'http://127.0.0.1:54345'),
+    ],
+
+    'toutiao_publisher' => [
+        'http_host' => env('TOUTIAO_PUBLISHER_HTTP_HOST', '127.0.0.1'),
+        'http_port' => env('TOUTIAO_PUBLISHER_HTTP_PORT', 18432),
     ],
 
 ];

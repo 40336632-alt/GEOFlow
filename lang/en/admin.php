@@ -2183,6 +2183,8 @@ return [
             'category_desc' => 'Configure how categories are assigned to generated articles.',
             'advanced_title' => 'Advanced Settings',
             'advanced_desc' => 'Configure advanced task execution behavior.',
+            'geo_title' => 'GEO Optimization',
+            'geo_desc' => 'Configure AutoGEO content optimization engine to improve AI search citation rate',
         ],
         'field' => [
             'task_name' => 'Task Name',
@@ -2204,6 +2206,9 @@ return [
             'article_limit' => 'Total Article Limit',
             'draft_limit' => 'Draft Pool Limit',
             'loop_mode' => 'Loop Generation',
+            'enable_geo_optimization' => 'Enable GEO Optimization',
+            'geo_dataset' => 'GEO Dataset',
+            'geo_engine_llm' => 'GEO Optimization Engine',
         ],
         'placeholder' => [
             'task_name' => 'Example: Tech news auto-generation task',
@@ -2229,6 +2234,10 @@ return [
             'category_random' => 'Random Category Mode',
             'select_category' => 'Select a category',
             'categories_load_failed' => 'Failed to load categories',
+            'geo_dataset_default' => 'Default (General rules)',
+            'geo_dataset_medical' => 'Medical & Healthcare',
+            'geo_dataset_ecommerce' => 'E-commerce Products',
+            'geo_dataset_research' => 'Academic Research',
         ],
         'help' => [
             'knowledge_base' => 'When selected, the system retrieves the most relevant snippets for the title/keywords and injects them into the content prompt as <code>{{Knowledge}}</code>.',
@@ -2247,6 +2256,10 @@ return [
             'draft_limit' => 'Maximum unpublished drafts kept in the draft pool. Generation pauses when the pool is full and resumes after drafts are published or reviewed.',
             'loop_mode' => 'When enabled, the task repeats titles after the selected title library is exhausted.',
             'no_categories_configured' => 'No categories are available yet. Please create at least one category before creating a task.',
+            'enable_geo_optimization' => 'When enabled, AI-generated content will be optimized by AutoGEO engine to improve citation rate in AI search engines',
+            'geo_dataset' => 'Select the content domain. The system will use domain-specific optimization rules',
+            'geo_engine_llm' => 'Select the LLM engine for content optimization. Different engines may produce different results',
+            'geo_info' => 'GEO (Generative Engine Optimization) rewrites content to make it more likely to be cited by AI search engines. Requires the AutoGEO microservice to be running (port 5000).',
         ],
         'preview' => [
             'categories_title' => 'Available Categories',

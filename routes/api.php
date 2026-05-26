@@ -12,6 +12,7 @@
 use App\Http\Controllers\Api\V1\ArticleController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CatalogController;
+use App\Http\Controllers\Api\V1\Internal\PublishBatchController;
 use App\Http\Controllers\Api\V1\JobController;
 use App\Http\Controllers\Api\V1\MaterialController;
 use App\Http\Controllers\Api\V1\TaskController;
@@ -23,6 +24,13 @@ Route::prefix('v1')
     ->group(function (): void {
         // 公开：管理员登录，返回 API Token（无需 Bearer）
         Route::post('auth/login', [AuthController::class, 'login']);
+
+        // 内部批量发布接口（无认证，仅限内网调用）
+        Route::prefix('internal/publish')->group(function (): void {
+            Route::get('next-article', [PublishBatchController::class, 'nextArticle']);
+            Route::post('mark-published', [PublishBatchController::class, 'markPublished']);
+            Route::post('mark-failed', [PublishBatchController::class, 'markFailed']);
+        });
 
         // 需有效 Token + 对应 scope
         Route::middleware(['api.auth'])->group(function (): void {

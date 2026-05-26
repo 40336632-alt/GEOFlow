@@ -260,6 +260,49 @@
 
                 <div class="bg-white shadow rounded-lg xl:col-span-12">
                     <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-medium text-gray-900">{{ $t('task_create.section.geo_title') }}</h3>
+                        <p class="mt-1 text-sm text-gray-600">{{ $t('task_create.section.geo_desc') }}</p>
+                    </div>
+                    <div class="px-6 py-4">
+                        <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                            <div>
+                                <div class="flex items-center">
+                                    <input type="hidden" name="enable_geo_optimization" value="0">
+                                    <input type="checkbox" name="enable_geo_optimization" id="enable_geo_optimization" value="1" @checked(old('enable_geo_optimization', (string) ($taskForm['enable_geo_optimization'] ?? '0')) === '1')
+                                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                    <label for="enable_geo_optimization" class="ml-2 block text-sm text-gray-900">{{ $t('task_create.field.enable_geo_optimization') }}</label>
+                                </div>
+                                <p class="mt-1 text-sm text-gray-500">{{ $t('task_create.help.enable_geo_optimization') }}</p>
+                            </div>
+                            <div id="geo-dataset-section" class="hidden">
+                                <label for="geo_dataset" class="block text-sm font-medium text-gray-700">{{ $t('task_create.field.geo_dataset') }}</label>
+                                <select name="geo_dataset" id="geo_dataset" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="default" @selected(old('geo_dataset', (string) ($taskForm['geo_dataset'] ?? 'default')) === 'default')>{{ $t('task_create.option.geo_dataset_default') }}</option>
+                                    <option value="medical" @selected(old('geo_dataset', (string) ($taskForm['geo_dataset'] ?? 'default')) === 'medical')>{{ $t('task_create.option.geo_dataset_medical') }}</option>
+                                    <option value="ecommerce" @selected(old('geo_dataset', (string) ($taskForm['geo_dataset'] ?? 'default')) === 'ecommerce')>{{ $t('task_create.option.geo_dataset_ecommerce') }}</option>
+                                    <option value="research" @selected(old('geo_dataset', (string) ($taskForm['geo_dataset'] ?? 'default')) === 'research')>{{ $t('task_create.option.geo_dataset_research') }}</option>
+                                </select>
+                                <p class="mt-1 text-sm text-gray-500">{{ $t('task_create.help.geo_dataset') }}</p>
+                            </div>
+                            <div id="geo-engine-section" class="hidden">
+                                <label for="geo_engine_llm" class="block text-sm font-medium text-gray-700">{{ $t('task_create.field.geo_engine_llm') }}</label>
+                                <select name="geo_engine_llm" id="geo_engine_llm" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="gemini" @selected(old('geo_engine_llm', (string) ($taskForm['geo_engine_llm'] ?? 'gemini')) === 'gemini')>Google Gemini</option>
+                                    <option value="openai" @selected(old('geo_engine_llm', (string) ($taskForm['geo_engine_llm'] ?? 'gemini')) === 'openai')>OpenAI GPT</option>
+                                    <option value="anthropic" @selected(old('geo_engine_llm', (string) ($taskForm['geo_engine_llm'] ?? 'gemini')) === 'anthropic')>Anthropic Claude</option>
+                                </select>
+                                <p class="mt-1 text-sm text-gray-500">{{ $t('task_create.help.geo_engine_llm') }}</p>
+                            </div>
+                        </div>
+                        <div class="mt-4 rounded-md bg-blue-50 px-4 py-3 text-sm text-blue-700">
+                            <i data-lucide="info" class="w-4 h-4 inline mr-1"></i>
+                            {{ $t('task_create.help.geo_info') }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white shadow rounded-lg xl:col-span-12">
+                    <div class="px-6 py-4 border-b border-gray-200">
                         <h3 class="text-lg font-medium text-gray-900">{{ $t('task_create.section.seo_title') }}</h3>
                         <p class="mt-1 text-sm text-gray-600">{{ $t('task_create.section.seo_desc') }}</p>
                     </div>
@@ -418,6 +461,9 @@
             const categoryModeRadios = document.querySelectorAll('input[name="category_mode"]');
             const publishScopeRadios = document.querySelectorAll('[data-publish-scope-option]');
             const distributionChannelInputs = document.querySelectorAll('[data-distribution-channel-input]');
+            const geoCheckbox = document.getElementById('enable_geo_optimization');
+            const geoDatasetSection = document.getElementById('geo-dataset-section');
+            const geoEngineSection = document.getElementById('geo-engine-section');
             const form = document.querySelector('form');
 
             if (!form) {
@@ -470,6 +516,16 @@
                 }
             }
 
+            function toggleGeoSections() {
+                if (geoCheckbox.checked) {
+                    geoDatasetSection.classList.remove('hidden');
+                    geoEngineSection.classList.remove('hidden');
+                } else {
+                    geoDatasetSection.classList.add('hidden');
+                    geoEngineSection.classList.add('hidden');
+                }
+            }
+
             function syncDistributionChannelsByScope() {
                 const selectedScope = document.querySelector('input[name="publish_scope"]:checked');
                 const isLocalOnly = selectedScope && selectedScope.value === 'local_only';
@@ -499,6 +555,7 @@
             articleLimitInput.addEventListener('input', syncDraftLimitMax);
             categoryModeRadios.forEach((radio) => radio.addEventListener('change', handleCategoryModeChange));
             publishScopeRadios.forEach((radio) => radio.addEventListener('change', syncDistributionChannelsByScope));
+            geoCheckbox.addEventListener('change', toggleGeoSections);
 
             form.addEventListener('submit', function (event) {
                 if (!document.getElementById('task_name').value.trim()) {
@@ -541,6 +598,7 @@
             handleCategoryModeChange();
             syncDraftLimitMax();
             syncDistributionChannelsByScope();
+            toggleGeoSections();
         });
     </script>
 @endpush

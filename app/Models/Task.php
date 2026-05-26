@@ -31,6 +31,9 @@ class Task extends Model
         'model_selection_mode',
         'status',
         'publish_scope',
+        'enable_geo_optimization',
+        'geo_dataset',
+        'geo_engine_llm',
         'created_count',
         'published_count',
         'loop_count',
@@ -74,6 +77,7 @@ class Task extends Model
             'next_publish_at' => 'datetime',
             'last_success_at' => 'datetime',
             'last_error_at' => 'datetime',
+            'enable_geo_optimization' => 'boolean',
             'schedule_enabled' => 'integer',
             'max_retry_count' => 'integer',
         ];
@@ -132,6 +136,11 @@ class Task extends Model
     public function taskRuns(): HasMany
     {
         return $this->hasMany(TaskRun::class, 'task_id');
+    }
+
+    public function geoOptimizationLogs(): HasMany
+    {
+        return $this->hasMany(GeoOptimizationLog::class, 'task_id');
     }
 
     public function distributionChannels(): BelongsToMany

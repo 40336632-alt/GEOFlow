@@ -6,6 +6,7 @@ use App\Ai\Agents\MarkdownContentWriterAgent;
 use App\Models\AiModel;
 use App\Models\Article;
 use App\Models\ArticleImage;
+use App\Models\GeoOptimizationLog;
 use App\Models\Author;
 use App\Models\Category;
 use App\Models\Image;
@@ -33,7 +34,8 @@ class WorkerExecutionService
     public function __construct(
         private readonly ApiKeyCrypto $apiKeyCrypto,
         private readonly KnowledgeChunkSyncService $knowledgeChunkSyncService,
-        private readonly DistributionOrchestrator $distributionOrchestrator
+        private readonly DistributionOrchestrator $distributionOrchestrator,
+        private readonly AutoGeoIntegrationService $autoGeoService
     ) {}
 
     /**
@@ -83,6 +85,16 @@ class WorkerExecutionService
         $generation = $this->generateContentWithModelSelection($task, $contentPrompt);
         $aiModel = $generation['model'];
         $generatedContent = $generation['content'];
+
+        // AutoGEO content optimization
+        $geoOptimizationResult = null;
+        if ($this->shouldApplyGeoOptimization($task)) {
+            $geoOptimizationResult = $this->applyGeoOptimization($task, $generatedContent);
+            if ($geoOptimizationResult['success']) {
+                $generatedContent = $geoOptimizationResult['content'];
+            }
+        }
+
         $imageResult = $this->insertTaskImagesIntoContent($task, $generatedContent);
         $content = $imageResult['content'];
         $selectedImages = $imageResult['images'];
@@ -93,7 +105,7 @@ class WorkerExecutionService
             'published_at' => null,
         ];
 
-        $articleId = DB::transaction(function () use ($task, $titleRow, $author, $category, $keyword, $content, $excerpt, $workflow, $selectedImages): int {
+        $articleId = DB::transaction(function () use ($task, $titleRow, $author, $category, $keyword, $content, $excerpt, $workflow, $selectedImages, $geoOptimizationResult, $generation): int {
             $freshTask = Task::query()
                 ->whereKey((int) $task->id)
                 ->lockForUpdate()
@@ -106,7 +118,7 @@ class WorkerExecutionService
                 throw new RuntimeException($generationBlockReason);
             }
 
-            $article = Article::query()->create([
+            $articleData = [
                 'title' => (string) $titleRow->title,
                 'slug' => ArticleWorkflow::generateUniqueSlug((string) $titleRow->title),
                 'excerpt' => $excerpt,
@@ -122,7 +134,16 @@ class WorkerExecutionService
                 'is_ai_generated' => 1,
                 'published_at' => $workflow['published_at'],
                 'view_count' => 0,
-            ]);
+            ];
+
+            // Add GEO optimization data if available
+            if ($geoOptimizationResult !== null && ($geoOptimizationResult['success'] ?? false)) {
+                $articleData['geo_scores'] = $geoOptimizationResult['scores'];
+                $articleData['geo_original_content'] = $generation['content'];
+                $articleData['geo_optimized_at'] = now();
+            }
+
+            $article = Article::query()->create($articleData);
             if ($selectedImages !== []) {
                 foreach ($selectedImages as $position => $image) {
                     ArticleImage::query()->create([
@@ -1082,5 +1103,155 @@ class WorkerExecutionService
         }
 
         return trim(implode("\n\n", $parts));
+    }
+
+    /**
+     * Check if GEO optimization should be applied for this task.
+     */
+    private function shouldApplyGeoOptimization(Task $task): bool
+    {
+        // Check if task has GEO optimization enabled
+        if (! (int) ($task->enable_geo_optimization ?? 0)) {
+            return false;
+        }
+
+        // Check if AutoGEO service is available
+        if (! $this->autoGeoService->isAvailable()) {
+            \Illuminate\Support\Facades\Log::warning('AutoGEO service not available, skipping optimization');
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Apply GEO optimization to generated content.
+     *
+     * @return array{success: bool, content: string, scores: array|null}
+     */
+    private function applyGeoOptimization(Task $task, string $content): array
+    {
+        $dataset = $this->resolveGeoDataset($task);
+        $engineLlm = $this->resolveGeoEngine($task);
+        $evaluate = (bool) config('autogeo.enable_evaluation', true);
+        $startTime = microtime(true);
+
+        try {
+            $result = $this->autoGeoService->optimizeContent(
+                content: $content,
+                dataset: $dataset,
+                engineLlm: $engineLlm,
+                evaluate: $evaluate
+            );
+
+            $duration = round(microtime(true) - $startTime, 2);
+
+            // Log to database
+            GeoOptimizationLog::query()->create([
+                'task_id' => $task->id,
+                'dataset' => $dataset,
+                'engine_llm' => $engineLlm,
+                'original_content' => mb_substr($content, 0, 10000),
+                'optimized_content' => mb_substr($result['content'] ?? $content, 0, 10000),
+                'geo_scores' => $result['scores'],
+                'status' => ($result['success'] ?? false) ? 'success' : 'failed',
+                'error_message' => $result['error'] ?? null,
+                'duration_seconds' => $duration,
+            ]);
+
+            if ($result['success']) {
+                \Illuminate\Support\Facades\Log::info('AutoGEO optimization successful', [
+                    'task_id' => $task->id,
+                    'dataset' => $dataset,
+                    'engine' => $engineLlm,
+                    'scores' => $result['scores'],
+                    'duration' => $duration,
+                ]);
+            } else {
+                \Illuminate\Support\Facades\Log::warning('AutoGEO optimization failed', [
+                    'task_id' => $task->id,
+                    'error' => $result['error'],
+                ]);
+            }
+
+            return $result;
+
+        } catch (\Exception $e) {
+            $duration = round(microtime(true) - $startTime, 2);
+
+            // Log exception to database
+            GeoOptimizationLog::query()->create([
+                'task_id' => $task->id,
+                'dataset' => $dataset,
+                'engine_llm' => $engineLlm,
+                'original_content' => mb_substr($content, 0, 10000),
+                'optimized_content' => '',
+                'geo_scores' => null,
+                'status' => 'error',
+                'error_message' => $e->getMessage(),
+                'duration_seconds' => $duration,
+            ]);
+
+            \Illuminate\Support\Facades\Log::error('AutoGEO optimization exception', [
+                'task_id' => $task->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'content' => $content,
+                'scores' => null,
+            ];
+        }
+    }
+
+    /**
+     * Resolve GEO dataset based on task configuration.
+     */
+    private function resolveGeoDataset(Task $task): string
+    {
+        // Check task-specific dataset
+        if (! empty($task->geo_dataset)) {
+            return $task->geo_dataset;
+        }
+
+        // Try to map from task category
+        $category = $this->pickCategory($task);
+        if ($category) {
+            $mappings = config('autogeo.dataset_mappings', []);
+            $categoryName = strtolower($category->name);
+            foreach ($mappings as $pattern => $dataset) {
+                if (str_contains($categoryName, $pattern)) {
+                    return $dataset;
+                }
+            }
+        }
+
+        return config('autogeo.default_dataset', 'default');
+    }
+
+    /**
+     * Resolve GEO engine based on task configuration.
+     */
+    private function resolveGeoEngine(Task $task): string
+    {
+        // Check task-specific engine
+        if (! empty($task->geo_engine_llm)) {
+            return $task->geo_engine_llm;
+        }
+
+        // Try to map from AI model
+        $aiModel = $this->resolveAiModel($task);
+        if ($aiModel) {
+            $mappings = config('autogeo.engine_mappings', []);
+            $modelName = strtolower($aiModel->name);
+            foreach ($mappings as $pattern => $engine) {
+                if (str_contains($modelName, $pattern)) {
+                    return $engine;
+                }
+            }
+        }
+
+        return config('autogeo.default_engine', 'gemini');
     }
 }

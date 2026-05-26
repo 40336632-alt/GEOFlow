@@ -213,6 +213,9 @@ class TaskController extends Controller
                 'auto_keywords' => (int) ($task['auto_keywords'] ?? 1),
                 'auto_description' => (int) ($task['auto_description'] ?? 1),
                 'publish_scope' => (string) ($task['publish_scope'] ?? 'local_and_distribution'),
+                'enable_geo_optimization' => (int) ($task['enable_geo_optimization'] ?? 0),
+                'geo_dataset' => (string) ($task['geo_dataset'] ?? 'default'),
+                'geo_engine_llm' => (string) ($task['geo_engine_llm'] ?? 'gemini'),
                 'distribution_channel_ids' => $this->taskDistributionChannelIds($taskId),
             ],
         ]);
@@ -553,6 +556,9 @@ class TaskController extends Controller
             'category_mode' => ['nullable', 'string', 'in:smart,fixed,random'],
             'model_selection_mode' => ['nullable', 'string', 'in:fixed,smart_failover'],
             'publish_scope' => ['nullable', 'string', 'in:local_and_distribution,distribution_only,local_only'],
+            'enable_geo_optimization' => ['nullable'],
+            'geo_dataset' => ['nullable', 'string', 'in:default,medical,ecommerce,research'],
+            'geo_engine_llm' => ['nullable', 'string', 'in:gemini,openai,anthropic'],
             'distribution_channel_ids' => ['nullable', 'array'],
             'distribution_channel_ids.*' => ['integer', 'min:1'],
         ]);
@@ -590,6 +596,9 @@ class TaskController extends Controller
             'model_selection_mode' => (string) ($payload['model_selection_mode'] ?? 'fixed'),
             'auto_keywords' => $request->boolean('auto_keywords') ? 1 : 0,
             'auto_description' => $request->boolean('auto_description') ? 1 : 0,
+            'enable_geo_optimization' => $request->boolean('enable_geo_optimization') ? 1 : 0,
+            'geo_dataset' => (string) ($payload['geo_dataset'] ?? 'default'),
+            'geo_engine_llm' => (string) ($payload['geo_engine_llm'] ?? 'gemini'),
         ];
     }
 
