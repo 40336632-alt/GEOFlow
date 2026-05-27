@@ -76,7 +76,7 @@ class PublishBatchController extends Controller
     public function articlesByTask(Request $request): JsonResponse
     {
         $taskId = $request->integer('task_id');
-        $limit = min($request->integer('limit', 3), 20);
+        $limit = min($request->integer('limit', 3), 100);
 
         if ($taskId < 1) {
             return ApiResponse::error('invalid_param', 'task_id is required', Str::uuid()->toString(), 400);
