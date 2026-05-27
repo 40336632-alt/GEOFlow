@@ -73,8 +73,8 @@
                             <div>
                                 <label for="status" class="block text-sm font-medium text-gray-700">{{ $t('task_create.field.task_status') }}</label>
                                 <select name="status" id="status" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                                    <option value="active" @selected(old('status', (string) ($taskForm['status'] ?? 'active')) === 'active')>{{ $t('task_create.option.status_active') }}</option>
-                                    <option value="paused" @selected(old('status', (string) ($taskForm['status'] ?? 'active')) === 'paused')>{{ $t('task_create.option.status_paused') }}</option>
+                                    <option value="paused" @selected(old('status', (string) ($taskForm['status'] ?? 'paused')) === 'paused')>{{ $t('task_create.option.status_paused') }}</option>
+                                    <option value="active" @selected(old('status', (string) ($taskForm['status'] ?? 'paused')) === 'active')>{{ $t('task_create.option.status_active') }}</option>
                                 </select>
                             </div>
                         </div>

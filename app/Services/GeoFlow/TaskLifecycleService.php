@@ -564,7 +564,7 @@ class TaskLifecycleService
                 $output['status'] = $status;
             }
         } elseif (! $isUpdate) {
-            $output['status'] = 'active';
+            $output['status'] = 'paused';
         }
 
         if (array_key_exists('publish_scope', $data)) {

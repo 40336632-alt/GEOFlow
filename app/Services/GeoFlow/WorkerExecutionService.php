@@ -62,6 +62,14 @@ class WorkerExecutionService
 
         $generationBlockReason = $this->getGenerationBlockReason($task);
         if ($generationBlockReason !== null) {
+            // 达到上限时自动暂停任务
+            if ($generationBlockReason === '已达到文章总数上限') {
+                Task::query()->whereKey($task->id)->update([
+                    'status' => 'paused',
+                    'schedule_enabled' => 0,
+                ]);
+            }
+
             return [
                 'article_id' => null,
                 'title' => '',
