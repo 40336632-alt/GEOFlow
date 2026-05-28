@@ -34,7 +34,6 @@ class WorkerExecutionService
     public function __construct(
         private readonly ApiKeyCrypto $apiKeyCrypto,
         private readonly KnowledgeChunkSyncService $knowledgeChunkSyncService,
-        private readonly DistributionOrchestrator $distributionOrchestrator,
         private readonly AutoGeoIntegrationService $autoGeoService
     ) {}
 
@@ -51,13 +50,6 @@ class WorkerExecutionService
 
         if (($task->status ?? 'paused') !== 'active' || (int) ($task->schedule_enabled ?? 1) !== 1) {
             throw new RuntimeException('任务未激活');
-        }
-
-        $publishResult = $this->publishDueDraftArticle($task);
-        if ($publishResult !== null) {
-            $this->distributionOrchestrator->enqueueForArticle((int) $publishResult['article_id']);
-
-            return $publishResult;
         }
 
         $generationBlockReason = $this->getGenerationBlockReason($task);
@@ -108,17 +100,12 @@ class WorkerExecutionService
         $content = $imageResult['content'];
         $selectedImages = $imageResult['images'];
         $excerpt = $this->buildExcerpt($content);
-        $workflow = [
-            'status' => 'draft',
-            'review_status' => (int) ($task->need_review ?? 1) === 1 ? 'pending' : 'approved',
-            'published_at' => null,
-        ];
 
-        $articleId = DB::transaction(function () use ($task, $titleRow, $author, $category, $keyword, $content, $excerpt, $workflow, $selectedImages, $geoOptimizationResult, $generation): int {
+        $articleId = DB::transaction(function () use ($task, $titleRow, $author, $category, $keyword, $content, $excerpt, $selectedImages, $geoOptimizationResult, $generation): int {
             $freshTask = Task::query()
                 ->whereKey((int) $task->id)
                 ->lockForUpdate()
-                ->first(['id', 'status', 'schedule_enabled', 'created_count', 'draft_limit', 'article_limit', 'publish_interval', 'next_publish_at']);
+                ->first(['id', 'status', 'schedule_enabled', 'created_count', 'draft_limit', 'article_limit']);
             if (! $freshTask || ($freshTask->status ?? 'paused') !== 'active' || (int) ($freshTask->schedule_enabled ?? 1) !== 1) {
                 throw new RuntimeException('任务未激活');
             }
@@ -138,10 +125,10 @@ class WorkerExecutionService
                 'original_keyword' => $keyword,
                 'keywords' => $keyword,
                 'meta_description' => mb_substr($excerpt, 0, 120),
-                'status' => $workflow['status'],
-                'review_status' => $workflow['review_status'],
+                'status' => 'draft',
+                'review_status' => 'pending',
                 'is_ai_generated' => 1,
-                'published_at' => $workflow['published_at'],
+                'published_at' => null,
                 'view_count' => 0,
             ];
 
@@ -176,9 +163,6 @@ class WorkerExecutionService
                 'loop_count' => DB::raw('COALESCE(loop_count,0)+1'),
                 'updated_at' => now(),
             ];
-            if ($freshTask->next_publish_at === null || ! $freshTask->next_publish_at->greaterThan(now())) {
-                $taskUpdate['next_publish_at'] = now()->addSeconds($this->normalizePublishInterval($freshTask));
-            }
             Task::query()->whereKey($task->id)->update($taskUpdate);
 
             return (int) $article->id;
@@ -205,100 +189,16 @@ class WorkerExecutionService
     }
 
     /**
-     * 发布一个已审核草稿。生成与发布解耦后，Worker 每次执行优先释放到期草稿。
-     *
-     * @return array{article_id:int, title:string, message:string, meta:array<string,mixed>}|null
-     */
-    private function publishDueDraftArticle(Task $task): ?array
-    {
-        if ($task->next_publish_at !== null && $task->next_publish_at->greaterThan(now())) {
-            return null;
-        }
-
-        return DB::transaction(function () use ($task): ?array {
-            $freshTask = Task::query()
-                ->whereKey((int) $task->id)
-                ->lockForUpdate()
-                ->first(['id', 'status', 'schedule_enabled', 'publish_interval', 'next_publish_at', 'publish_scope']);
-            if (! $freshTask || ($freshTask->status ?? 'paused') !== 'active' || (int) ($freshTask->schedule_enabled ?? 1) !== 1) {
-                throw new RuntimeException('任务未激活');
-            }
-
-            if ($freshTask->next_publish_at !== null && $freshTask->next_publish_at->greaterThan(now())) {
-                return null;
-            }
-
-            /** @var Article|null $article */
-            $article = Article::query()
-                ->where('task_id', (int) $freshTask->id)
-                ->where('status', 'draft')
-                ->whereIn('review_status', ['approved', 'auto_approved'])
-                ->whereNull('deleted_at')
-                ->orderBy('id')
-                ->lockForUpdate()
-                ->first(['id', 'title', 'review_status']);
-            if (! $article) {
-                return null;
-            }
-
-            $publishScope = (string) ($freshTask->publish_scope ?? 'local_and_distribution');
-            $targetStatus = $publishScope === 'distribution_only' ? 'private' : 'published';
-            $workflow = ArticleWorkflow::normalizeState($targetStatus, (string) ($article->review_status ?: 'approved'));
-            Article::query()->whereKey((int) $article->id)->update([
-                'status' => $workflow['status'],
-                'review_status' => $workflow['review_status'],
-                'published_at' => $workflow['published_at'],
-                'updated_at' => now(),
-            ]);
-
-            $publishInterval = $this->normalizePublishInterval($freshTask);
-            Task::query()->whereKey((int) $freshTask->id)->update([
-                'published_count' => DB::raw('COALESCE(published_count,0)+1'),
-                'next_publish_at' => now()->addSeconds($publishInterval),
-                'updated_at' => now(),
-            ]);
-
-            return [
-                'article_id' => (int) $article->id,
-                'title' => (string) $article->title,
-                'message' => '草稿发布成功',
-                'meta' => [
-                    'task_id' => (int) $freshTask->id,
-                    'action' => 'publish_draft',
-                    'publish_interval' => $publishInterval,
-                ],
-            ];
-        });
-    }
-
-    /**
      * 判断是否允许继续生成草稿。
      */
     private function getGenerationBlockReason(Task $task, bool $lock = false): ?string
     {
-        $articleLimit = max(1, (int) ($task->article_limit ?? $task->draft_limit ?? 10));
+        $articleLimit = max(1, (int) ($task->article_limit ?? 10));
         if ((int) ($task->created_count ?? 0) >= $articleLimit) {
             return '已达到文章总数上限';
         }
 
-        $draftLimit = max(1, (int) ($task->draft_limit ?? 10));
-        $draftQuery = Article::query()
-            ->where('task_id', (int) $task->id)
-            ->where('status', 'draft')
-            ->whereNull('deleted_at');
-        // PostgreSQL 不允许在 count(*) 聚合查询上追加 FOR UPDATE。
-        // 这里的并发保护由任务行锁和 task_runs 的单任务串行队列保证，草稿计数不需要再单独加锁。
-
-        if ($draftQuery->count() >= $draftLimit) {
-            return '草稿池已满，等待审核或按间隔发布';
-        }
-
         return null;
-    }
-
-    private function normalizePublishInterval(Task $task): int
-    {
-        return max(60, (int) ($task->publish_interval ?? 3600));
     }
 
     /**

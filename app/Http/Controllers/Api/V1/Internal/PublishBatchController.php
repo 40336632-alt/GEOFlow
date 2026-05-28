@@ -10,6 +10,7 @@ use App\Models\Task;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class PublishBatchController extends Controller
@@ -85,20 +86,31 @@ class PublishBatchController extends Controller
         $articles = Article::query()
             ->where('task_id', $taskId)
             ->where('status', 'draft')
-            ->where('review_status', 'pending')
             ->whereNull('deleted_at')
             ->orderBy('id')
             ->limit($limit)
             ->get()
             ->map(function ($article) {
-                $coverPath = null;
-                $firstImage = $article->articleImages()
+                $allImages = $article->articleImages()
                     ->with('image')
                     ->orderBy('position')
                     ->orderBy('id')
-                    ->first();
-                if ($firstImage && $firstImage->image) {
-                    $coverPath = $firstImage->image->file_path;
+                    ->get();
+
+                $coverPath = null;
+                $images = [];
+                foreach ($allImages as $ai) {
+                    if (! $ai->image) {
+                        continue;
+                    }
+                    $filePath = $ai->image->file_path;
+                    if ($coverPath === null) {
+                        $coverPath = $filePath;
+                    }
+                    $images[] = [
+                        'file_path' => $filePath,
+                        'filename' => $ai->image->filename ?? '',
+                    ];
                 }
 
                 return [
@@ -106,6 +118,7 @@ class PublishBatchController extends Controller
                     'title' => $article->title,
                     'content' => $article->content,
                     'cover_path' => $coverPath,
+                    'images' => $images,
                     'task_id' => $article->task_id,
                     'author_name' => $article->author?->name ?? '',
                 ];
@@ -168,7 +181,6 @@ class PublishBatchController extends Controller
         $article = Article::query()
             ->where('task_id', $taskId)
             ->where('status', 'draft')
-            ->where('review_status', 'pending')
             ->whereNull('deleted_at')
             ->orderBy('id')
             ->first();
@@ -222,7 +234,6 @@ class PublishBatchController extends Controller
             'has_more' => Article::query()
                 ->where('task_id', $taskId)
                 ->where('status', 'draft')
-                ->where('review_status', 'pending')
                 ->whereNull('deleted_at')
                 ->where('id', '>', $article->id)
                 ->exists(),
@@ -232,6 +243,7 @@ class PublishBatchController extends Controller
     public function markPublished(Request $request): JsonResponse
     {
         $articleId = $request->integer('article_id');
+        $accountName = $request->input('account_name');
         if ($articleId < 1) {
             return ApiResponse::error('invalid_param', 'article_id is required', Str::uuid()->toString(), 400);
         }
@@ -241,16 +253,47 @@ class PublishBatchController extends Controller
             return ApiResponse::error('not_found', 'Article not found', Str::uuid()->toString(), 404);
         }
 
-        $article->update([
+        // 记录文章快照到 BatchPublishLog，再物理删除
+        $logData = [
+            'article_id' => $article->id,
+            'account_name' => $accountName,
+            'platform' => 'toutiao',
+            'task_id' => $article->task_id,
+            'title' => $article->title,
             'status' => 'published',
-            'review_status' => 'pending_review',
+            'source' => 'serial_publish',
             'published_at' => now(),
-            'deleted_at' => now(),
-        ]);
+            'raw_data' => [
+                'article_id' => $article->id,
+                'title' => $article->title,
+                'task_id' => $article->task_id,
+                'author_id' => $article->author_id,
+                'category_id' => $article->category_id,
+                'keywords' => $article->keywords,
+                'meta_description' => $article->meta_description,
+                'deleted_at' => now()->toIso8601String(),
+            ],
+        ];
+        BatchPublishLog::query()->create($logData);
+
+        // 更新账号今日发布计数
+        if ($accountName) {
+            BrowserProfile::query()
+                ->where('account_name', $accountName)
+                ->update([
+                    'today_published' => DB::raw('today_published + 1'),
+                    'last_used_at' => now(),
+                ]);
+        }
+
+        // 物理删除
+        $article->forceDelete();
 
         return ApiResponse::success([
-            'article_id' => $article->id,
+            'article_id' => $articleId,
             'status' => 'published',
+            'deleted' => true,
+            'account_name' => $accountName,
         ], Str::uuid()->toString());
     }
 
@@ -330,7 +373,6 @@ class PublishBatchController extends Controller
                 $count = Article::query()
                     ->where('task_id', $task->id)
                     ->where('status', 'draft')
-                    ->where('review_status', 'pending')
                     ->whereNull('deleted_at')
                     ->count();
                 if ($count > 0) {
@@ -342,19 +384,13 @@ class PublishBatchController extends Controller
                 }
             }
 
-            $accountName = $profile->account_name ?? $profile->profile_name ?? '未命名';
-            $todayBatch = BatchPublishLog::query()
-                ->where('account_name', $accountName)
-                ->whereDate('created_at', today())
-                ->where('status', 'submitted')
-                ->count();
-            $todayPublished = max($todayBatch, $profile->last_used_at && $profile->last_used_at->isToday() ? $profile->today_published : 0);
+            $todayPublished = $profile->getEffectiveTodayPublished();
             $remaining = $profile->daily_limit - $todayPublished;
 
             $result[] = [
                 'id' => $profile->id,
                 'profile_id' => $profile->profile_id,
-                'account_name' => $accountName,
+                'account_name' => $profile->account_name,
                 'daily_limit' => $profile->daily_limit,
                 'today_published' => $todayPublished,
                 'remaining' => max(0, $remaining),
@@ -388,6 +424,27 @@ class PublishBatchController extends Controller
                 ->whereDate('created_at', today())
                 ->where('status', 'submitted')
                 ->count(),
+        ], Str::uuid()->toString());
+    }
+
+    public function randomImages(Request $request): JsonResponse
+    {
+        $limit = min(max(1, $request->integer('limit', 3)), 10);
+        $libraryId = $request->integer('library_id');
+
+        $query = \App\Models\Image::query()->orderByRaw('RANDOM()');
+        if ($libraryId > 0) {
+            $query->where('library_id', $libraryId);
+        }
+
+        $images = $query->limit($limit)->get(['id', 'file_path', 'filename']);
+
+        return ApiResponse::success([
+            'images' => $images->map(fn ($img) => [
+                'id' => (int) $img->id,
+                'file_path' => $img->file_path,
+                'filename' => $img->filename ?? '',
+            ])->values()->all(),
         ], Str::uuid()->toString());
     }
 }

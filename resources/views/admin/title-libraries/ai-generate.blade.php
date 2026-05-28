@@ -57,9 +57,44 @@
                         </select>
                     </div>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">{{ __('admin.title_ai_generate.field.custom_prompt') }}</label>
-                    <textarea name="custom_prompt" rows="4" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 text-sm" placeholder="{{ __('admin.title_ai_generate.placeholder.custom_prompt') }}">{{ old('custom_prompt') }}</textarea>
+                <div class="border-t border-gray-200 pt-6">
+                    <h4 class="text-sm font-semibold text-gray-900 mb-4">{{ __('admin.title_ai_generate.field.doctor_info_section') }}</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">{{ __('admin.title_ai_generate.field.city') }}</label>
+                            <input type="text" name="doctor_city" value="{{ old('doctor_city') }}" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 text-sm" placeholder="{{ __('admin.title_ai_generate.placeholder.city') }}">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">{{ __('admin.title_ai_generate.field.topic') }}</label>
+                            <input type="text" name="doctor_topic" value="{{ old('doctor_topic') }}" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 text-sm" placeholder="{{ __('admin.title_ai_generate.placeholder.topic') }}">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">{{ __('admin.title_ai_generate.field.extra_info') }}</label>
+                            <input type="text" name="doctor_extra" value="{{ old('doctor_extra') }}" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 text-sm" placeholder="{{ __('admin.title_ai_generate.placeholder.extra_info') }}">
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">{{ __('admin.title_ai_generate.field.select_author') }}</label>
+                        <select id="doctorAuthorSelect" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 text-sm">
+                            <option value="">{{ __('admin.title_ai_generate.option.select_author') }}</option>
+                            @foreach ($authors as $author)
+                                <option value="{{ (int) $author->id }}"
+                                    data-name="{{ $author->name }}"
+                                    data-bio="{{ $author->bio ?? '' }}"
+                                    @selected((int) old('doctor_author_id') === (int) $author->id)
+                                >{{ $author->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">{{ __('admin.title_ai_generate.field.doctor_info') }}</label>
+                        <textarea id="doctorInfoTextarea" name="doctor_info" rows="3" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 text-sm" placeholder="{{ __('admin.title_ai_generate.placeholder.doctor_info') }}">{{ old('doctor_info') }}</textarea>
+                        <p class="mt-1 text-xs text-gray-400">{{ __('admin.title_ai_generate.placeholder.doctor_info_hint') }}</p>
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">{{ __('admin.title_ai_generate.field.custom_prompt') }}</label>
+                        <textarea name="custom_prompt" rows="2" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 text-sm" placeholder="{{ __('admin.title_ai_generate.placeholder.custom_prompt_extra') }}">{{ old('custom_prompt') }}</textarea>
+                    </div>
                 </div>
                 <div class="flex justify-end">
                     <button type="submit" class="inline-flex items-center px-5 py-2.5 border border-transparent rounded-md text-sm font-medium text-white bg-purple-600 hover:bg-purple-700">
@@ -82,4 +117,23 @@
             </ul>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var select = document.getElementById('doctorAuthorSelect');
+            var textarea = document.getElementById('doctorInfoTextarea');
+            if (!select || !textarea) return;
+
+            select.addEventListener('change', function () {
+                var option = select.options[select.selectedIndex];
+                if (!option || !option.value) {
+                    return;
+                }
+                var name = option.getAttribute('data-name') || '';
+                var bio = option.getAttribute('data-bio') || '';
+                var info = name + (bio ? ' ' + bio : '');
+                textarea.value = info;
+            });
+        });
+    </script>
 @endsection

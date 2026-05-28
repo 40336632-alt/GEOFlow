@@ -10,7 +10,6 @@ use App\Models\BrowserProfile;
 use App\Models\Category;
 use App\Models\Task;
 use App\Services\GeoFlow\AutoGeoIntegrationService;
-use App\Services\GeoFlow\DistributionOrchestrator;
 use App\Support\AdminWeb;
 use App\Support\GeoFlow\ArticleWorkflow;
 use Illuminate\Database\QueryException;
@@ -30,7 +29,6 @@ use Throwable;
 class ArticleController extends Controller
 {
     public function __construct(
-        private readonly DistributionOrchestrator $distributionOrchestrator,
         private readonly AutoGeoIntegrationService $autoGeoService,
     ) {}
 
@@ -240,9 +238,6 @@ class ArticleController extends Controller
                 'is_hot' => (bool) ($payload['is_hot'] ?? false),
                 'is_featured' => (bool) ($payload['is_featured'] ?? false),
             ]);
-            if ($workflowState['status'] === 'published') {
-                $this->distributionOrchestrator->enqueueForArticle($article);
-            }
         } catch (Throwable $e) {
             return back()->withInput()->withErrors(__('admin.article_create.error.create_exception', ['message' => $e->getMessage()]));
         }
@@ -320,9 +315,6 @@ class ArticleController extends Controller
                 'is_hot' => (bool) ($payload['is_hot'] ?? false),
                 'is_featured' => (bool) ($payload['is_featured'] ?? false),
             ])->save();
-            if ($workflowState['status'] === 'published') {
-                $this->distributionOrchestrator->enqueueForArticle($article);
-            }
         } catch (Throwable $e) {
             return back()->withInput()->withErrors(__('admin.article_edit.error.update_exception', ['message' => $e->getMessage()]));
         }
@@ -394,10 +386,6 @@ class ArticleController extends Controller
             'task:id,name,need_review',
             'author:id,name',
             'category:id,name',
-        ])->withCount([
-            'distributions as distribution_total_count',
-            'distributions as distribution_synced_count' => fn ($distributionQuery) => $distributionQuery->where('status', 'synced'),
-            'distributions as distribution_failed_count' => fn ($distributionQuery) => $distributionQuery->where('status', 'failed'),
         ]);
 
         if ($filters['trashed'] ?? false) {
@@ -634,10 +622,6 @@ class ArticleController extends Controller
                 'review_status' => $workflowState['review_status'],
                 'published_at' => $workflowState['published_at'],
             ]);
-
-            if ($workflowState['status'] === 'published') {
-                $this->distributionOrchestrator->enqueueForArticle((int) $article->id);
-            }
         }
 
         return back()->with('message', __('admin.articles.message.batch_status_updated', ['count' => count($articleIds)]));
@@ -677,10 +661,6 @@ class ArticleController extends Controller
                 'review_status' => $workflowState['review_status'],
                 'published_at' => $workflowState['published_at'],
             ]);
-
-            if ($workflowState['status'] === 'published') {
-                $this->distributionOrchestrator->enqueueForArticle((int) $article->id);
-            }
         }
 
         return back()->with('message', __('admin.articles.message.batch_review_updated', ['count' => count($articleIds)]));

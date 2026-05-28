@@ -74,34 +74,6 @@
 
         $multiSiteCards = [
             [
-                'title' => __('admin.dashboard.navigation.distribution_channels_title'),
-                'desc' => __('admin.dashboard.navigation.distribution_channels_desc'),
-                'href' => route('admin.distribution.index'),
-                'icon' => 'radio-tower',
-                'tone' => 'text-blue-600 bg-blue-50',
-            ],
-            [
-                'title' => __('admin.dashboard.navigation.create_channel_title'),
-                'desc' => __('admin.dashboard.navigation.create_channel_desc'),
-                'href' => route('admin.distribution.create'),
-                'icon' => 'square-plus',
-                'tone' => 'text-emerald-600 bg-emerald-50',
-            ],
-            [
-                'title' => __('admin.dashboard.navigation.distribution_jobs_title'),
-                'desc' => __('admin.dashboard.navigation.distribution_jobs_desc'),
-                'href' => route('admin.distribution.jobs'),
-                'icon' => 'list-checks',
-                'tone' => 'text-orange-600 bg-orange-50',
-            ],
-            [
-                'title' => __('admin.dashboard.navigation.remote_content_title'),
-                'desc' => __('admin.dashboard.navigation.remote_content_desc'),
-                'href' => route('admin.distribution.jobs'),
-                'icon' => 'file-pen-line',
-                'tone' => 'text-rose-600 bg-rose-50',
-            ],
-            [
                 'title' => __('admin.dashboard.navigation.create_task_title'),
                 'desc' => __('admin.dashboard.navigation.create_task_desc'),
                 'href' => route('admin.tasks.create'),

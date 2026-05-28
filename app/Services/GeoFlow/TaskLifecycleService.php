@@ -513,21 +513,21 @@ class TaskLifecycleService
         }
 
         if (array_key_exists('publish_interval', $data)) {
-            $output['publish_interval'] = max(60, (int) $data['publish_interval']);
+            $output['publish_interval'] = max(0, (int) $data['publish_interval']);
         } elseif (! $isUpdate) {
-            $output['publish_interval'] = 3600;
+            $output['publish_interval'] = 0;
         }
 
         if (array_key_exists('draft_limit', $data)) {
             $output['draft_limit'] = max(1, (int) $data['draft_limit']);
         } elseif (! $isUpdate) {
-            $output['draft_limit'] = 10;
+            $output['draft_limit'] = 999999;
         }
 
         if (array_key_exists('article_limit', $data)) {
             $output['article_limit'] = max(1, (int) $data['article_limit']);
         } elseif (! $isUpdate) {
-            $output['article_limit'] = max(10, (int) ($output['draft_limit'] ?? 10));
+            $output['article_limit'] = 10;
         }
 
         if (isset($output['article_limit'], $output['draft_limit']) && $output['draft_limit'] > $output['article_limit']) {

@@ -5,7 +5,7 @@
     {{-- 页面标题 --}}
     <div>
         <h1 class="text-2xl font-bold text-gray-900">GEO内容发布流程</h1>
-        <p class="mt-2 text-sm text-gray-500">按以下7个步骤完成从素材准备到内容发布的完整流程，每个步骤都有关键注意事项和快捷入口。</p>
+        <p class="mt-2 text-sm text-gray-500">按以下步骤完成从素材准备到头条发布的完整流程。AI生成文章 → 自动发布到头条 → 发布后自动删除。</p>
     </div>
 
     {{-- 流程概览 --}}
@@ -17,15 +17,14 @@
                 </div>
                 <div>
                     <h2 class="text-lg font-semibold text-gray-900">完整流程概览</h2>
-                    <p class="text-sm text-gray-600">准备素材 → 拓词 → 写作 → 收录查询 → 可见度诊断 → 发布 → SEO优化</p>
+                    <p class="text-sm text-gray-600">准备素材 → 拓词 → AI写作 → 收录查询 → 可见度诊断 → 头条发布</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
                 <span class="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
                     <i data-lucide="zap" class="w-3 h-3 mr-1"></i>
-                    7个步骤
+                    6个步骤
                 </span>
-
             </div>
         </div>
     </div>
@@ -121,7 +120,7 @@
                             可选步骤
                         </span>
                     </div>
-                    <p class="text-sm text-gray-600 mb-4">输入主关键词，AI自动生成20-50个相关搜索问题，用于扩展关键词库。生成的关键词可用于AI写作任务的蒸馏训练。</p>
+                    <p class="text-sm text-gray-600 mb-4">输入主关键词，AI自动生成20-50个相关搜索问题，用于扩展关键词库。生成的关键词可用于AI写作任务。</p>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div class="rounded-lg bg-gray-50 p-4">
@@ -154,7 +153,6 @@
                                 <li>建议先拓词再写文章，关键词更丰富</li>
                                 <li>品牌名要准确，影响收录查询结果</li>
                                 <li>生成的关键词可保存到关键词库复用</li>
-
                             </ul>
                         </div>
                     </div>
@@ -205,7 +203,7 @@
                                 </li>
                                 <li class="flex items-start gap-2">
                                     <i data-lucide="check-circle" class="w-4 h-4 text-emerald-500 shrink-0 mt-0.5"></i>
-                                    执行任务，生成文章草稿
+                                    启动任务，AI自动生成文章
                                 </li>
                             </ul>
                         </div>
@@ -217,8 +215,8 @@
                             <ul class="space-y-1.5 text-sm text-amber-700">
                                 <li>写作指令越详细，生成质量越高</li>
                                 <li>关联知识库可大幅提升专业性</li>
-                                <li>生成后必须人工审核再发布</li>
-                                <li>不要直接发布未审核内容</li>
+                                <li>任务默认暂停，需手动启动</li>
+                                <li>达到文章上限后自动暂停</li>
                             </ul>
                         </div>
                     </div>
@@ -375,7 +373,7 @@
         </div>
     </div>
 
-    {{-- 步骤6: 浏览器发布 --}}
+    {{-- 步骤6: 头条发布 --}}
     <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
         <div class="p-6">
             <div class="flex items-start gap-4">
@@ -384,17 +382,17 @@
                 </div>
                 <div class="flex-1">
                     <div class="flex items-center gap-3 mb-2">
-                        <h3 class="text-lg font-semibold text-gray-900">浏览器发布</h3>
+                        <h3 class="text-lg font-semibold text-gray-900">头条发布</h3>
                         <span class="inline-flex items-center rounded-full bg-cyan-50 px-2.5 py-0.5 text-xs font-medium text-cyan-700">
                             <i data-lucide="globe" class="w-3 h-3 mr-1"></i>
-                            多平台分发
+                            自动发布
                         </span>
                     </div>
-                    <p class="text-sm text-gray-600 mb-4">通过BitBrowser自动化发布到各自媒体平台。支持个人自媒体、KOL、网站媒体等多种发布类型。</p>
+                    <p class="text-sm text-gray-600 mb-4">通过 serial_publish.js 脚本自动从GEOFlow获取文章，使用BitBrowser发布到头条。发布成功后文章自动从系统删除。</p>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div class="rounded-lg bg-gray-50 p-4">
-                            <h4 class="text-sm font-medium text-gray-900 mb-2">操作步骤</h4>
+                            <h4 class="text-sm font-medium text-gray-900 mb-2">发布流程</h4>
                             <ul class="space-y-1.5 text-sm text-gray-600">
                                 <li class="flex items-start gap-2">
                                     <i data-lucide="check-circle" class="w-4 h-4 text-emerald-500 shrink-0 mt-0.5"></i>
@@ -402,15 +400,19 @@
                                 </li>
                                 <li class="flex items-start gap-2">
                                     <i data-lucide="check-circle" class="w-4 h-4 text-emerald-500 shrink-0 mt-0.5"></i>
-                                    同步浏览器配置，授权平台账号
+                                    配置浏览器窗口和账号
                                 </li>
                                 <li class="flex items-start gap-2">
                                     <i data-lucide="check-circle" class="w-4 h-4 text-emerald-500 shrink-0 mt-0.5"></i>
-                                    选择已发布的文章
+                                    运行 serial_publish.js 脚本
                                 </li>
                                 <li class="flex items-start gap-2">
                                     <i data-lucide="check-circle" class="w-4 h-4 text-emerald-500 shrink-0 mt-0.5"></i>
-                                    选择发布类型和平台，执行发布
+                                    脚本自动轮询发布，每轮间隔5-10分钟
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <i data-lucide="check-circle" class="w-4 h-4 text-emerald-500 shrink-0 mt-0.5"></i>
+                                    发布成功后文章自动删除
                                 </li>
                             </ul>
                         </div>
@@ -420,100 +422,28 @@
                                 关键注意事项
                             </h4>
                             <ul class="space-y-1.5 text-sm text-amber-700">
+                                <li>每个窗口每天最多发布5篇</li>
                                 <li>BitBrowser要保持运行状态</li>
                                 <li>各平台账号要提前在浏览器中登录</li>
-                                <li>每天发布3-5篇，保持稳定节奏</li>
+                                <li>发布失败的文章会保留，下轮重试</li>
                             </ul>
                         </div>
                     </div>
 
                     <div class="flex flex-wrap gap-2">
+                        <a href="{{ route('admin.publish.dashboard') }}" class="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-cyan-600 rounded-lg hover:bg-cyan-700">
+                            <i data-lucide="layout-dashboard" class="w-4 h-4 mr-1.5"></i>
+                            发布看板
+                        </a>
                         <a href="{{ route('admin.browser-profiles.index') }}" class="inline-flex items-center px-3 py-2 text-sm font-medium text-cyan-700 bg-cyan-50 rounded-lg hover:bg-cyan-100">
                             <i data-lucide="monitor" class="w-4 h-4 mr-1.5"></i>
-                            浏览器管理
-                        </a>
-                        <a href="{{ route('admin.publish-tasks.create') }}" class="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-cyan-600 rounded-lg hover:bg-cyan-700">
-                            <i data-lucide="send" class="w-4 h-4 mr-1.5"></i>
-                            创建发布任务
-                        </a>
-                        <a href="{{ route('admin.publish-tasks.index') }}" class="inline-flex items-center px-3 py-2 text-sm font-medium text-cyan-700 bg-cyan-50 rounded-lg hover:bg-cyan-100">
-                            <i data-lucide="list" class="w-4 h-4 mr-1.5"></i>
-                            发布任务列表
+                            账号管理
                         </a>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-
-    {{-- 步骤7: SEO优化发布 --}}
-    <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
-        <div class="p-6">
-            <div class="flex items-start gap-4">
-                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600 font-bold text-lg">
-                    7
-                </div>
-                <div class="flex-1">
-                    <div class="flex items-center gap-3 mb-2">
-                        <h3 class="text-lg font-semibold text-gray-900">SEO优化发布</h3>
-                        <span class="inline-flex items-center rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-medium text-rose-700">
-                            <i data-lucide="trending-up" class="w-3 h-3 mr-1"></i>
-                            可选步骤
-                        </span>
-                    </div>
-                    <p class="text-sm text-gray-600 mb-4">将文章发布到自有网站进行SEO优化。自动生成sitemap，支持多站点分发，提升搜索引擎排名。</p>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div class="rounded-lg bg-gray-50 p-4">
-                            <h4 class="text-sm font-medium text-gray-900 mb-2">操作步骤</h4>
-                            <ul class="space-y-1.5 text-sm text-gray-600">
-                                <li class="flex items-start gap-2">
-                                    <i data-lucide="check-circle" class="w-4 h-4 text-emerald-500 shrink-0 mt-0.5"></i>
-                                    添加目标站点，输入域名
-                                </li>
-                                <li class="flex items-start gap-2">
-                                    <i data-lucide="check-circle" class="w-4 h-4 text-emerald-500 shrink-0 mt-0.5"></i>
-                                    选择站点类型
-                                </li>
-                                <li class="flex items-start gap-2">
-                                    <i data-lucide="check-circle" class="w-4 h-4 text-emerald-500 shrink-0 mt-0.5"></i>
-                                    创建SEO发布任务
-                                </li>
-                                <li class="flex items-start gap-2">
-                                    <i data-lucide="check-circle" class="w-4 h-4 text-emerald-500 shrink-0 mt-0.5"></i>
-                                    执行发布，自动生成sitemap
-                                </li>
-                            </ul>
-                        </div>
-                        <div class="rounded-lg bg-amber-50 p-4">
-                            <h4 class="text-sm font-medium text-amber-800 mb-2">
-                                <i data-lucide="alert-triangle" class="w-4 h-4 inline mr-1"></i>
-                                关键注意事项
-                            </h4>
-                            <ul class="space-y-1.5 text-sm text-amber-700">
-                                <li>适合自有网站的SEO优化</li>
-                                <li>支持多站点分发</li>
-                                <li>定期更新内容保持活跃度</li>
-                                <li>配合收录查询验证效果</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <div class="flex flex-wrap gap-2">
-                        <a href="{{ route('admin.seo.sites.index') }}" class="inline-flex items-center px-3 py-2 text-sm font-medium text-rose-700 bg-rose-50 rounded-lg hover:bg-rose-100">
-                            <i data-lucide="globe" class="w-4 h-4 mr-1.5"></i>
-                            站点管理
-                        </a>
-                        <a href="{{ route('admin.seo.tasks.index') }}" class="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-rose-600 rounded-lg hover:bg-rose-700">
-                            <i data-lucide="send" class="w-4 h-4 mr-1.5"></i>
-                            SEO发布任务
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
 
 </div>
 @endsection

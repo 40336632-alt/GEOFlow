@@ -100,28 +100,45 @@
                     </div>
                 </div>
             @else
+                <div class="px-6 py-3 border-b border-gray-200 bg-gray-50 flex items-center justify-between" id="batch-toolbar" style="display:none;">
+                    <div class="flex items-center space-x-4">
+                        <label class="inline-flex items-center space-x-2 text-sm text-gray-700">
+                            <input type="checkbox" id="select-all" class="rounded border-gray-300 text-red-600 focus:ring-red-500">
+                            <span>{{ __('admin.title_detail.select_all') }}</span>
+                        </label>
+                        <span class="text-sm text-gray-500" id="selected-count"></span>
+                    </div>
+                    <button type="button" onclick="batchDelete()" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700">
+                        <i data-lucide="trash-2" class="w-4 h-4 mr-2"></i>
+                        {{ __('admin.title_detail.batch_delete') }}
+                    </button>
+                </div>
+
                 <div class="divide-y divide-gray-200">
                     @foreach ($titles as $title)
                         <div class="px-6 py-4">
                             <div class="flex items-center justify-between">
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center space-x-3">
-                                        <h4 class="text-lg font-medium text-gray-900 break-all">{{ $title->title }}</h4>
-                                        @if ((bool) $title->is_ai_generated)
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                                <i data-lucide="zap" class="w-3 h-3 mr-1"></i>
-                                                {{ __('admin.title_detail.ai_badge') }}
-                                            </span>
-                                        @endif
-                                        @if ((string) ($title->keyword ?? '') !== '')
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                                                {{ $title->keyword }}
-                                            </span>
-                                        @endif
-                                    </div>
-                                    <div class="mt-2 flex items-center space-x-4 text-sm text-gray-500">
-                                        <span>{{ __('admin.title_detail.usage_count', ['count' => (int) ($title->used_count ?? 0)]) }}</span>
-                                        <span>{{ __('admin.title_detail.created_at', ['value' => optional($title->created_at)->format('Y-m-d H:i') ?? '-']) }}</span>
+                                <div class="flex items-center space-x-3 flex-1 min-w-0">
+                                    <input type="checkbox" name="title_ids" value="{{ (int) $title->id }}" class="title-checkbox rounded border-gray-300 text-red-600 focus:ring-red-500">
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center space-x-3">
+                                            <h4 class="text-lg font-medium text-gray-900 break-all">{{ $title->title }}</h4>
+                                            @if ((bool) $title->is_ai_generated)
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                                    <i data-lucide="zap" class="w-3 h-3 mr-1"></i>
+                                                    {{ __('admin.title_detail.ai_badge') }}
+                                                </span>
+                                            @endif
+                                            @if ((string) ($title->keyword ?? '') !== '')
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                                                    {{ $title->keyword }}
+                                                </span>
+                                            @endif
+                                        </div>
+                                        <div class="mt-2 flex items-center space-x-4 text-sm text-gray-500">
+                                            <span>{{ __('admin.title_detail.usage_count', ['count' => (int) ($title->used_count ?? 0)]) }}</span>
+                                            <span>{{ __('admin.title_detail.created_at', ['value' => optional($title->created_at)->format('Y-m-d H:i') ?? '-']) }}</span>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="flex items-center space-x-2">
@@ -247,9 +264,67 @@
             document.getElementById('delete-title-form').submit();
         }
 
+        function getSelectedIds() {
+            return Array.from(document.querySelectorAll('.title-checkbox:checked')).map(function (cb) {
+                return cb.value;
+            });
+        }
+
+        function updateToolbar() {
+            var ids = getSelectedIds();
+            var toolbar = document.getElementById('batch-toolbar');
+            var counter = document.getElementById('selected-count');
+            var selectAll = document.getElementById('select-all');
+            var allCheckboxes = document.querySelectorAll('.title-checkbox');
+
+            if (ids.length > 0) {
+                toolbar.style.display = '';
+                counter.textContent = @json(__('admin.title_detail.selected_count', ['count' => '{count}'])).replace('{count}', ids.length);
+            } else {
+                toolbar.style.display = 'none';
+            }
+
+            if (allCheckboxes.length > 0) {
+                selectAll.checked = ids.length === allCheckboxes.length;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            var selectAll = document.getElementById('select-all');
+            var checkboxes = document.querySelectorAll('.title-checkbox');
+
+            selectAll.addEventListener('change', function () {
+                checkboxes.forEach(function (cb) {
+                    cb.checked = selectAll.checked;
+                });
+                updateToolbar();
+            });
+
+            checkboxes.forEach(function (cb) {
+                cb.addEventListener('change', updateToolbar);
+            });
+        });
+
+        function batchDelete() {
+            var ids = getSelectedIds();
+            if (ids.length === 0) {
+                return;
+            }
+
+            var msg = @json(__('admin.title_detail.confirm_batch_delete', ['count' => '{count}'])).replace('{count}', ids.length);
+            if (!confirm(msg)) {
+                return;
+            }
+
+            var form = document.getElementById('delete-title-form');
+            var input = document.getElementById('delete-title-id');
+            input.value = ids.join(',');
+            form.submit();
+        }
+
         window.onclick = function (event) {
-            const addModal = document.getElementById('add-modal');
-            const importModal = document.getElementById('import-modal');
+            var addModal = document.getElementById('add-modal');
+            var importModal = document.getElementById('import-modal');
 
             if (event.target === addModal) {
                 hideAddModal();

@@ -28,7 +28,7 @@
                 <div class="flex items-center">
                     <div class="flex-shrink-0"><i data-lucide="check-circle" class="w-6 h-6 text-green-400"></i></div>
                     <div class="ml-4 flex-1">
-                        <dt class="text-sm font-medium text-gray-500 truncate">今日已发</dt>
+                        <dt class="text-sm font-medium text-gray-500 truncate">今日已发布</dt>
                         <dd class="text-2xl font-semibold text-green-600">{{ $todayPublishes }}</dd>
                     </div>
                 </div>
@@ -55,7 +55,7 @@
                 <div class="flex items-center">
                     <div class="flex-shrink-0"><i data-lucide="loader-2" class="w-6 h-6 text-amber-400"></i></div>
                     <div class="ml-4 flex-1">
-                        <dt class="text-sm font-medium text-gray-500 truncate">待处理</dt>
+                        <dt class="text-sm font-medium text-gray-500 truncate">待发布</dt>
                         <dd class="text-2xl font-semibold text-amber-600">{{ $pendingTasks }}</dd>
                     </div>
                 </div>
@@ -64,7 +64,7 @@
                 <div class="flex items-center">
                     <div class="flex-shrink-0"><i data-lucide="x-circle" class="w-6 h-6 text-red-400"></i></div>
                     <div class="ml-4 flex-1">
-                        <dt class="text-sm font-medium text-gray-500 truncate">今日失败</dt>
+                        <dt class="text-sm font-medium text-gray-500 truncate">今日发布失败</dt>
                         <dd class="text-2xl font-semibold text-red-600">{{ $todayFailed }}</dd>
                     </div>
                 </div>
@@ -148,45 +148,34 @@
             </div>
         </div>
 
-        {{-- Recent Publish History --}}
+        {{-- Pending Articles by Task --}}
         <div class="bg-white shadow rounded-lg overflow-hidden mb-6">
-            <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
-                <h3 class="text-sm font-medium text-gray-700">最近发布记录</h3>
-                <a href="{{ route('admin.publish-tasks.index') }}" class="text-xs text-blue-600 hover:text-blue-700">查看全部 →</a>
+            <div class="px-5 py-4 border-b border-gray-200">
+                <h3 class="text-sm font-medium text-gray-700">各任务待发布文章</h3>
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">文章</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">账号</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">平台</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">时间</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">任务</th>
+                            <th class="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">待发布</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
-                        @forelse ($recentTasks as $task)
+                        @forelse ($pendingByTask as $item)
                             <tr class="hover:bg-gray-50">
-                                <td class="px-4 py-3 text-sm text-gray-900 max-w-xs truncate">{{ $task->article?->title ?? '-' }}</td>
-                                <td class="px-4 py-3 text-sm text-gray-600">{{ $task->profile?->account_name ?? '-' }}</td>
-                                <td class="px-4 py-3 text-sm text-gray-500">{{ \App\Models\BrowserProfile::PLATFORMS[$task->platform] ?? $task->platform }}</td>
-                                <td class="px-4 py-3 whitespace-nowrap">
-                                    @if ($task->status === 'completed')
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">成功</span>
-                                    @elseif ($task->status === 'failed')
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800" title="{{ $task->error_message }}">失败</span>
-                                    @elseif ($task->status === 'running')
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">发布中</span>
-                                    @else
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">待处理</span>
-                                    @endif
+                                <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ $item['task_name'] }}</td>
+                                <td class="px-4 py-3 text-sm text-center">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">{{ $item['pending_count'] }} 篇</span>
                                 </td>
-                                <td class="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{{ $task->created_at?->diffForHumans() }}</td>
+                                <td class="px-4 py-3 text-sm">
+                                    <a href="{{ route('admin.articles.index') }}?task_id={{ $item['task_id'] }}" class="text-blue-600 hover:text-blue-700">查看文章</a>
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="px-4 py-8 text-center text-sm text-gray-400">暂无发布记录</td>
+                                <td colspan="3" class="px-4 py-8 text-center text-sm text-gray-400">所有任务的文章已全部发布</td>
                             </tr>
                         @endforelse
                     </tbody>

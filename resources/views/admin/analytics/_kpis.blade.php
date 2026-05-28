@@ -5,8 +5,6 @@
         ['key' => 'running_tasks', 'icon' => 'activity', 'tone' => 'text-amber-600'],
         ['key' => 'failed_tasks', 'icon' => 'triangle-alert', 'tone' => 'text-red-600'],
         ['key' => 'ai_calls', 'icon' => 'cpu', 'tone' => 'text-indigo-600'],
-        ['key' => 'distribution_failed', 'icon' => 'radio-tower', 'tone' => 'text-rose-600'],
-        ['key' => 'distribution_pending', 'icon' => 'clock', 'tone' => 'text-orange-600'],
         ['key' => 'total_views', 'icon' => 'eye', 'tone' => 'text-slate-700'],
     ];
 @endphp

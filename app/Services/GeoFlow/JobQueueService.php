@@ -51,7 +51,10 @@ class JobQueueService
             }
 
             if ($task->next_publish_at === null) {
-                $updates['next_publish_at'] = $now->copy()->addSeconds(max(60, (int) ($task->publish_interval ?? 3600)));
+                $interval = (int) ($task->publish_interval ?? 0);
+                $updates['next_publish_at'] = $interval > 0
+                    ? $now->copy()->addSeconds($interval)
+                    : $now->copy();
             }
 
             if ($task->schedule_enabled === null) {

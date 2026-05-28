@@ -6,13 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\AiModel;
 use App\Models\Author;
 use App\Models\Category;
-use App\Models\DistributionChannel;
 use App\Models\ImageLibrary;
 use App\Models\KnowledgeBase;
 use App\Models\Prompt;
 use App\Models\Task;
 use App\Models\TitleLibrary;
-use App\Services\GeoFlow\DistributionOrchestrator;
 use App\Services\GeoFlow\TaskLifecycleService;
 use App\Services\GeoFlow\TaskMonitoringQueryService;
 use App\Support\AdminWeb;
@@ -36,7 +34,6 @@ class TaskController extends Controller
     public function __construct(
         private readonly TaskLifecycleService $taskLifecycleService,
         private readonly TaskMonitoringQueryService $taskMonitoringQueryService,
-        private readonly DistributionOrchestrator $distributionOrchestrator,
     ) {}
 
     /**
@@ -153,13 +150,6 @@ class TaskController extends Controller
 
         try {
             $createdTask = $this->taskLifecycleService->createTask($taskData);
-            $createdTaskId = (int) ($createdTask['id'] ?? 0);
-            if ($createdTaskId) {
-                $this->distributionOrchestrator->syncTaskChannels(
-                    Task::query()->whereKey((int) $createdTaskId)->firstOrFail(),
-                    $this->selectedDistributionChannelIds($request)
-                );
-            }
         } catch (Throwable $e) {
             // 保留输入并回显服务层错误，便于在页面直接修正。
             return back()->withInput()->withErrors($e->getMessage());
@@ -205,18 +195,15 @@ class TaskController extends Controller
                 'status' => (string) ($task['status'] ?? 'active'),
                 'article_limit' => (string) ($task['article_limit'] ?? 10),
                 'draft_limit' => (string) ($task['draft_limit'] ?? 10),
-                'publish_interval' => (string) max(1, (int) (($task['publish_interval'] ?? 3600) / 60)),
                 'category_mode' => (string) ($task['category_mode'] ?? 'smart'),
                 'model_selection_mode' => (string) ($task['model_selection_mode'] ?? 'fixed'),
                 'need_review' => (int) ($task['need_review'] ?? 0),
                 'is_loop' => (int) ($task['is_loop'] ?? 1),
                 'auto_keywords' => (int) ($task['auto_keywords'] ?? 1),
                 'auto_description' => (int) ($task['auto_description'] ?? 1),
-                'publish_scope' => (string) ($task['publish_scope'] ?? 'local_and_distribution'),
                 'enable_geo_optimization' => (int) ($task['enable_geo_optimization'] ?? 0),
                 'geo_dataset' => (string) ($task['geo_dataset'] ?? 'default'),
                 'geo_engine_llm' => (string) ($task['geo_engine_llm'] ?? 'gemini'),
-                'distribution_channel_ids' => $this->taskDistributionChannelIds($taskId),
             ],
         ]);
     }
@@ -237,8 +224,6 @@ class TaskController extends Controller
 
         try {
             $this->taskLifecycleService->updateTask($taskId, $taskData);
-            $task = Task::query()->whereKey($taskId)->firstOrFail();
-            $this->distributionOrchestrator->syncTaskChannels($task, $this->selectedDistributionChannelIds($request));
         } catch (Throwable $e) {
             return back()->withInput()->withErrors($e->getMessage());
         }
@@ -415,7 +400,6 @@ class TaskController extends Controller
      *     knowledgeBases: list<array{id:int,name:string}>,
      *     authors: list<array{id:int,name:string}>,
      *     categories: list<array{id:int,name:string}>,
-     *     distributionChannels: list<array{id:int,name:string,domain:string}>
      * }
      */
     private function loadTaskFormOptions(): array
@@ -494,18 +478,6 @@ class TaskController extends Controller
             ->map(static fn (Category $row): array => ['id' => (int) $row->id, 'name' => (string) $row->name])
             ->all();
 
-        $distributionChannels = DistributionChannel::query()
-            ->select(['id', 'name', 'domain'])
-            ->where('status', 'active')
-            ->orderBy('name')
-            ->get()
-            ->map(static fn (DistributionChannel $row): array => [
-                'id' => (int) $row->id,
-                'name' => (string) $row->name,
-                'domain' => (string) $row->domain,
-            ])
-            ->all();
-
         return [
             'titleLibraries' => $titleLibraries,
             'prompts' => $prompts,
@@ -514,7 +486,6 @@ class TaskController extends Controller
             'knowledgeBases' => $knowledgeBases,
             'authors' => $authors,
             'categories' => $categories,
-            'distributionChannels' => $distributionChannels,
         ];
     }
 
@@ -552,15 +523,11 @@ class TaskController extends Controller
             'status' => ['required', 'string', 'in:active,paused'],
             'article_limit' => ['nullable', 'integer', 'min:1', 'max:99999'],
             'draft_limit' => ['nullable', 'integer', 'min:1', 'max:9999'],
-            'publish_interval' => ['nullable', 'integer', 'min:1'],
             'category_mode' => ['nullable', 'string', 'in:smart,fixed,random'],
             'model_selection_mode' => ['nullable', 'string', 'in:fixed,smart_failover'],
-            'publish_scope' => ['nullable', 'string', 'in:local_and_distribution,distribution_only,local_only'],
             'enable_geo_optimization' => ['nullable'],
             'geo_dataset' => ['nullable', 'string', 'in:default,medical,ecommerce,research'],
             'geo_engine_llm' => ['nullable', 'string', 'in:gemini,openai,anthropic'],
-            'distribution_channel_ids' => ['nullable', 'array'],
-            'distribution_channel_ids.*' => ['integer', 'min:1'],
         ]);
     }
 
@@ -586,10 +553,8 @@ class TaskController extends Controller
             'knowledge_base_id' => isset($payload['knowledge_base_id']) ? (int) $payload['knowledge_base_id'] : null,
             'fixed_category_id' => isset($payload['fixed_category_id']) ? (int) $payload['fixed_category_id'] : null,
             'status' => (string) $payload['status'],
-            'publish_scope' => (string) ($payload['publish_scope'] ?? 'local_and_distribution'),
             'article_limit' => (int) ($payload['article_limit'] ?? 10),
             'draft_limit' => (int) ($payload['draft_limit'] ?? 10),
-            'publish_interval' => max(1, (int) ($payload['publish_interval'] ?? 60)) * 60,
             'need_review' => $request->boolean('need_review') ? 1 : 0,
             'is_loop' => $request->boolean('is_loop') ? 1 : 0,
             'category_mode' => $categoryMode,
@@ -602,36 +567,4 @@ class TaskController extends Controller
         ];
     }
 
-    /**
-     * @return list<int>
-     */
-    private function selectedDistributionChannelIds(Request $request): array
-    {
-        if ((string) $request->input('publish_scope', 'local_and_distribution') === 'local_only') {
-            return [];
-        }
-
-        return collect($request->input('distribution_channel_ids', []))
-            ->map(static fn ($id): int => (int) $id)
-            ->filter(static fn (int $id): bool => $id > 0)
-            ->unique()
-            ->values()
-            ->all();
-    }
-
-    /**
-     * @return list<int>
-     */
-    private function taskDistributionChannelIds(int $taskId): array
-    {
-        $task = Task::query()->whereKey($taskId)->first();
-        if (! $task) {
-            return [];
-        }
-
-        return $task->distributionChannels()
-            ->pluck('distribution_channels.id')
-            ->map(static fn ($id): int => (int) $id)
-            ->all();
-    }
 }

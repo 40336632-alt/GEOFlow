@@ -38,6 +38,7 @@ Route::prefix('v1')
             Route::post('soft-delete', [PublishBatchController::class, 'softDelete']);
             Route::post('force-delete-article', [PublishBatchController::class, 'forceDeleteArticle']);
             Route::post('mark-log-verified', [PublishBatchController::class, 'markLogVerified']);
+            Route::get('random-images', [PublishBatchController::class, 'randomImages']);
         });
 
         // 需有效 Token + 对应 scope
@@ -108,9 +109,6 @@ Route::prefix('v1')
                 ->whereNumber('article')
                 ->middleware('api.scope:articles:write');
             Route::post('articles/{article}/review', [ArticleController::class, 'review'])
-                ->whereNumber('article')
-                ->middleware('api.scope:articles:publish');
-            Route::post('articles/{article}/publish', [ArticleController::class, 'publish'])
                 ->whereNumber('article')
                 ->middleware('api.scope:articles:publish');
             Route::post('articles/{article}/trash', [ArticleController::class, 'trash'])

@@ -67,8 +67,9 @@
                         @endif
                     </td>
                     <td class="px-6 py-4 text-sm text-gray-500">
-                        <span class="{{ $profile->today_published >= $profile->daily_limit ? 'text-red-600' : '' }}">
-                            {{ $profile->today_published }}
+                        @php $effective = $profile->getEffectiveTodayPublished(); @endphp
+                        <span class="{{ $effective >= $profile->daily_limit ? 'text-red-600' : '' }}">
+                            {{ $effective }}
                         </span>
                     </td>
                     <td class="px-6 py-4 text-sm text-gray-500">{{ $profile->daily_limit }}</td>

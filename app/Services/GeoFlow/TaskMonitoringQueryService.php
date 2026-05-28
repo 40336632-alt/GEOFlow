@@ -250,7 +250,6 @@ class TaskMonitoringQueryService
                 'published_count' => (int) ($task->published_count ?? 0),
                 'article_limit' => (int) ($task->article_limit ?? $task->draft_limit ?? 10),
                 'draft_limit' => (int) ($task->draft_limit ?? 10),
-                'publish_interval' => (int) ($task->publish_interval ?? 3600),
                 'batch_status' => $batchStatus,
                 'batch_error_message' => trim($batchErrorMessage),
                 'batch_last_run' => $task->last_run_at?->toDateTimeString(),
@@ -311,26 +310,16 @@ class TaskMonitoringQueryService
             return 'idle';
         }
 
-        $articleLimit = (int) ($task->article_limit ?? $task->draft_limit ?? 10);
+        $articleLimit = (int) ($task->article_limit ?? 10);
         $createdCount = (int) ($task->created_count ?? 0);
-        $draftLimit = (int) ($task->draft_limit ?? 10);
-        $draftCount = (int) ($articleStats['draft_articles'] ?? 0);
         $publishableDrafts = (int) ($articleStats['publishable_drafts'] ?? 0);
 
-        if ($createdCount >= $articleLimit && $draftCount <= 0) {
+        if ($createdCount >= $articleLimit) {
             return 'limit_reached';
         }
 
         if ($publishableDrafts > 0) {
             return 'waiting_publish';
-        }
-
-        if ($createdCount < $articleLimit && $draftCount >= $draftLimit) {
-            return 'draft_pool_full';
-        }
-
-        if ($createdCount >= $articleLimit) {
-            return 'limit_reached';
         }
 
         $latestStatus = (string) ($latestRun?->status ?? '');

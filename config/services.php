@@ -35,6 +35,7 @@ return [
 
     'bitbrowser' => [
         'url' => env('BITBROWSER_URL', 'http://127.0.0.1:54345'),
+        'api_key' => env('BITBROWSER_API_KEY', ''),
     ],
 
     'toutiao_publisher' => [

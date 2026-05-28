@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Task extends Model
@@ -141,12 +140,5 @@ class Task extends Model
     public function geoOptimizationLogs(): HasMany
     {
         return $this->hasMany(GeoOptimizationLog::class, 'task_id');
-    }
-
-    public function distributionChannels(): BelongsToMany
-    {
-        return $this->belongsToMany(DistributionChannel::class, 'task_distribution_channels')
-            ->withPivot(['trigger', 'remote_status', 'failure_policy', 'max_attempts'])
-            ->withTimestamps();
     }
 }

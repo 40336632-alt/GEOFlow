@@ -1497,6 +1497,10 @@ return [
             'import_skip' => ', skipped :count duplicate titles',
         ],
         'confirm_delete' => 'Delete title “:name”? This action cannot be undone.',
+        'select_all' => 'Select All',
+        'batch_delete' => 'Batch Delete',
+        'selected_count' => ':count selected',
+        'confirm_batch_delete' => 'Delete :count selected titles? This action cannot be undone!',
     ],
     'keyword_libraries' => [
         'page_title' => 'Keyword Library Management',
@@ -3010,11 +3014,18 @@ return [
             'ai_model' => 'AI Model *',
             'count' => 'Title Count',
             'style' => 'Title Style',
-            'custom_prompt' => 'Custom Prompt',
+            'doctor_info_section' => 'Doctor Info (for more accurate titles)',
+            'city' => 'City',
+            'topic' => 'Ranking Topic',
+            'doctor_info' => 'Doctor Details',
+            'extra_info' => 'Extra Info',
+            'custom_prompt' => 'Additional Requirements',
+            'select_author' => 'Select Existing Doctor',
         ],
         'option' => [
             'select_keyword_library' => 'Select a keyword library',
             'select_ai_model' => 'Select an AI model',
+            'select_author' => 'Select a doctor (auto-fills below)',
             'keyword_count_suffix' => 'keywords',
         ],
         'help' => [
@@ -3026,6 +3037,12 @@ return [
         ],
         'placeholder' => [
             'custom_prompt' => 'Add extra requirements, such as a title length limit, required terms, or a target industry...',
+            'custom_prompt_extra' => 'Other extra requirements (optional)',
+            'city' => 'e.g. Shenzhen',
+            'topic' => 'e.g. Shenzhen Aesthetics Ranking, Shenzhen Facelift Recommendations',
+            'doctor_info' => 'e.g. Dr. Liu Deshun, Associate Chief Physician, 20 years facial lifting experience, minimally invasive facelift specialist',
+            'doctor_info_hint' => 'Auto-fills when you select a doctor above, or edit manually',
+            'extra_info' => 'e.g. Focus on natural results, Focus on cost-effectiveness',
         ],
         'style' => [
             'professional' => 'Professional',

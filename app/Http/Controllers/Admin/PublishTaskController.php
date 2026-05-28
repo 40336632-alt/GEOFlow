@@ -8,6 +8,7 @@ use App\Models\BatchPublishLog;
 use App\Models\BrowserProfile;
 use App\Models\PublishLog;
 use App\Models\PublishTask;
+use App\Models\Task;
 use App\Services\ToutiaoPublisherService;
 use App\Support\AdminWeb;
 use Carbon\Carbon;
@@ -32,13 +33,7 @@ class PublishTaskController extends Controller
             ->orderBy('platform')
             ->get()
             ->map(function ($p) {
-                $isToday = $p->last_used_at && $p->last_used_at->isToday();
-                $todayBatch = BatchPublishLog::query()
-                    ->where('account_name', $p->account_name)
-                    ->whereDate('created_at', today())
-                    ->where('status', 'submitted')
-                    ->count();
-                $todayPublished = max($todayBatch, $isToday ? $p->today_published : 0);
+                $todayPublished = $p->getEffectiveTodayPublished();
                 return [
                     'id' => $p->id,
                     'platform' => $p->platform,
@@ -54,16 +49,17 @@ class PublishTaskController extends Controller
             });
 
         $today = Carbon::today();
-        $todayPublishes = PublishTask::where('user_id', $userId)
-            ->whereDate('published_at', $today)
-            ->where('status', 'completed')
+        $todayPublishes = BatchPublishLog::query()
+            ->whereDate('created_at', $today)
+            ->where('status', 'published')
             ->count();
 
-        $pendingTasks = PublishTask::where('user_id', $userId)
-            ->where('status', 'pending')
+        $pendingTasks = Article::query()
+            ->where('status', 'draft')
+            ->whereNull('deleted_at')
             ->count();
 
-        $todayFailed = PublishTask::where('user_id', $userId)
+        $todayFailed = BatchPublishLog::query()
             ->whereDate('created_at', $today)
             ->where('status', 'failed')
             ->count();
@@ -104,11 +100,11 @@ class PublishTaskController extends Controller
             ];
         });
 
-        $weeklyStats = collect(range(6, 0))->map(function ($daysAgo) use ($userId) {
+        $weeklyStats = collect(range(6, 0))->map(function ($daysAgo) {
             $date = Carbon::today()->subDays($daysAgo);
-            $count = PublishTask::where('user_id', $userId)
-                ->whereDate('published_at', $date)
-                ->where('status', 'completed')
+            $count = BatchPublishLog::query()
+                ->whereDate('created_at', $date)
+                ->where('status', 'published')
                 ->count();
             return [
                 'date' => $date->format('m-d'),
@@ -117,9 +113,27 @@ class PublishTaskController extends Controller
             ];
         });
 
+        $pendingByTask = Task::query()
+            ->where('status', 'active')
+            ->get()
+            ->map(function ($task) {
+                $pendingCount = Article::query()
+                    ->where('task_id', $task->id)
+                    ->where('status', 'draft')
+                    ->whereNull('deleted_at')
+                    ->count();
+                return [
+                    'task_id' => $task->id,
+                    'task_name' => $task->name,
+                    'pending_count' => $pendingCount,
+                ];
+            })
+            ->filter(fn ($item) => $item['pending_count'] > 0)
+            ->values();
+
         return view('admin.publish.dashboard', [
             'pageTitle' => '发布看板',
-            'activeMenu' => 'distribution',
+            'activeMenu' => 'publish-dashboard',
             'adminSiteName' => AdminWeb::siteName(),
             'profiles' => $profiles,
             'todayPublishes' => $todayPublishes,
@@ -133,6 +147,7 @@ class PublishTaskController extends Controller
             'recentBatchLogs' => $recentBatchLogs,
             'weeklyStats' => $weeklyStats,
             'weeklyBatchStats' => $weeklyBatchStats,
+            'pendingByTask' => $pendingByTask,
         ]);
     }
 

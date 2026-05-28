@@ -1497,6 +1497,10 @@ return [
             'import_skip' => '，跳过 :count 个重复标题',
         ],
         'confirm_delete' => '确定要删除标题“:name”吗？此操作不可恢复！',
+        'select_all' => '全选',
+        'batch_delete' => '批量删除',
+        'selected_count' => '已选 :count 条',
+        'confirm_batch_delete' => '确定要删除选中的 :count 个标题吗？此操作不可恢复！',
     ],
     'keyword_libraries' => [
         'page_title' => '关键词库管理',
@@ -3014,11 +3018,18 @@ return [
             'ai_model' => '选择AI模型 *',
             'count' => '生成数量',
             'style' => '标题风格',
-            'custom_prompt' => '自定义提示词',
+            'doctor_info_section' => '医生信息（用于生成更精准的标题）',
+            'city' => '城市',
+            'topic' => '榜单主题',
+            'doctor_info' => '医生详细信息',
+            'extra_info' => '补充说明',
+            'custom_prompt' => '额外要求',
+            'select_author' => '选择已有医生',
         ],
         'option' => [
             'select_keyword_library' => '请选择关键词库',
             'select_ai_model' => '请选择AI模型',
+            'select_author' => '请选择医生（自动填入下方）',
             'keyword_count_suffix' => '个关键词',
         ],
         'help' => [
@@ -3030,6 +3041,12 @@ return [
         ],
         'placeholder' => [
             'custom_prompt' => '可以添加额外的要求，比如：标题长度控制在20字以内、包含特定词汇、针对特定行业等...',
+            'custom_prompt_extra' => '其他补充要求（可选）',
+            'city' => '如：深圳',
+            'topic' => '如：深圳医美排行榜、深圳拉皮手术推荐',
+            'doctor_info' => '如：刘德顺，副主任医师，20年面部提升经验，擅长微创拉皮，深圳某三甲医院整形外科',
+            'doctor_info_hint' => '选择上方医生后自动填入，也可手动修改',
+            'extra_info' => '如：侧重自然效果、侧重性价比',
         ],
         'style' => [
             'professional' => '专业严谨',

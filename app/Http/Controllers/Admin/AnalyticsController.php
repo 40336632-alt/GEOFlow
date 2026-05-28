@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Article;
 use App\Models\Category;
-use App\Models\DistributionChannel;
 use App\Models\Task;
 use App\Services\Admin\Analytics\AnalyticsFilter;
 use App\Services\Admin\Analytics\AnalyticsLogQueryService;
@@ -36,7 +35,6 @@ class AnalyticsController extends Controller
             'publicationTrend' => $this->overviewService->publicationTrend($filter),
             'taskTrend' => $this->overviewService->taskTrend($filter),
             'contentFunnel' => $this->overviewService->contentFunnel($filter),
-            'distributionSummary' => $this->overviewService->distributionSummary($filter),
             'topContent' => $this->overviewService->topContent($filter),
             'aiUsageSummary' => $this->overviewService->aiUsageSummary($filter),
             'categoryDistribution' => $this->overviewService->categoryDistribution($filter),
@@ -56,10 +54,6 @@ class AnalyticsController extends Controller
     private function filterOptions(): array
     {
         return [
-            'channels' => DistributionChannel::query()
-                ->orderBy('name')
-                ->select('id', 'name')
-                ->get(),
             'tasks' => Task::query()
                 ->orderByDesc('created_at')
                 ->select('id', 'name')

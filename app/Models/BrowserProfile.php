@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\BatchPublishLog;
 
 class BrowserProfile extends Model
 {
@@ -43,7 +44,26 @@ class BrowserProfile extends Model
 
     public function canPublish(): bool
     {
-        return $this->isAuthorized() && $this->today_published < $this->daily_limit;
+        return $this->isAuthorized() && $this->getEffectiveTodayPublished() < $this->daily_limit;
+    }
+
+    /**
+     * 从 BatchPublishLog 实时计算今日发布数（兼容旧数据）
+     */
+    public function getEffectiveTodayPublished(): int
+    {
+        $accountName = $this->account_name ?? $this->profile_name ?? '';
+        if (!$accountName) {
+            return $this->today_published ?? 0;
+        }
+
+        $logCount = BatchPublishLog::query()
+            ->where('account_name', $accountName)
+            ->whereDate('created_at', today())
+            ->where('status', 'published')
+            ->count();
+
+        return max($logCount, $this->today_published ?? 0);
     }
 
     const PLATFORMS = [

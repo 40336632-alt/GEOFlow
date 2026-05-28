@@ -140,53 +140,18 @@
                                 </td>
                                 <td class="px-5 py-4 align-top whitespace-nowrap text-sm text-gray-500">
                                     @php
-                                        $articleLimit = max(1, (int) ($task['article_limit'] ?? $task['draft_limit'] ?? 10));
+                                        $articleLimit = max(1, (int) ($task['article_limit'] ?? 10));
                                         $createdForProgress = min($articleLimit, (int) ($task['created_count'] ?? $task['total_articles'] ?? 0));
                                         $progressPercent = (int) floor(($createdForProgress / $articleLimit) * 100);
-                                        $distributionTotal = (int) ($task['distribution_total_count'] ?? 0);
-                                        $distributionSynced = (int) ($task['distribution_synced_count'] ?? 0);
-                                        $distributionFailed = (int) ($task['distribution_failed_count'] ?? 0);
-                                        $distributionPending = max(0, $distributionTotal - $distributionSynced - $distributionFailed);
-                                        $taskDistributionBadge = null;
-                                        if ($distributionTotal > 0) {
-                                            if ($distributionFailed > 0) {
-                                                $taskDistributionBadge = [
-                                                    'label' => __('admin.distribution.task_status.failed', ['count' => $distributionFailed]),
-                                                    'class' => 'bg-red-50 text-red-700 ring-red-100',
-                                                ];
-                                            } elseif ($distributionSynced >= $distributionTotal) {
-                                                $taskDistributionBadge = [
-                                                    'label' => __('admin.distribution.task_status.synced', ['count' => $distributionTotal]),
-                                                    'class' => 'bg-emerald-50 text-emerald-700 ring-emerald-100',
-                                                ];
-                                            } else {
-                                                $taskDistributionBadge = [
-                                                    'label' => __('admin.distribution.task_status.queued', ['count' => $distributionPending]),
-                                                    'class' => 'bg-sky-50 text-sky-700 ring-sky-100',
-                                                ];
-                                            }
-                                        }
                                     @endphp
                                     <div id="task-created-{{ (int) $task['id'] }}">{{ __('admin.tasks.label.created_of_limit', ['created' => (int) ($task['created_count'] ?? $task['total_articles'] ?? 0), 'limit' => $articleLimit]) }}</div>
                                     <div id="task-published-{{ (int) $task['id'] }}">{{ __('admin.tasks.label.published_articles', ['count' => (int) ($task['published_articles'] ?? 0)]) }}</div>
-                                    <div id="task-drafts-{{ (int) $task['id'] }}">{{ __('admin.tasks.label.draft_articles', ['count' => (int) ($task['draft_articles'] ?? 0)]) }}</div>
                                     <div class="mt-2 h-1.5 w-28 overflow-hidden rounded-full bg-gray-200">
                                         <div id="task-progress-{{ (int) $task['id'] }}" class="h-full rounded-full bg-blue-600" style="width: {{ $progressPercent }}%"></div>
                                     </div>
-                                    @if($taskDistributionBadge !== null)
-                                        <div class="mt-2">
-                                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 {{ $taskDistributionBadge['class'] }}">
-                                                <i data-lucide="send" class="mr-1 h-3 w-3"></i>
-                                                {{ $taskDistributionBadge['label'] }}
-                                            </span>
-                                        </div>
-                                    @endif
                                 </td>
                                 <td class="px-5 py-4 align-top whitespace-nowrap text-sm text-gray-500">
                                     <span id="task-loop-{{ (int) $task['id'] }}">{{ __('admin.tasks.label.loop_times', ['count' => (int) ($task['loop_count'] ?? 0)]) }}</span>
-                                    <div id="task-publish-interval-{{ (int) $task['id'] }}" class="mt-1 text-xs text-gray-400">
-                                        {{ __('admin.tasks.label.publish_interval_minutes', ['count' => max(1, (int) ceil(((int) ($task['publish_interval'] ?? 3600)) / 60))]) }}
-                                    </div>
                                 </td>
                                 <td class="px-4 py-4 align-top">
                                     <form method="POST" action="{{ route('admin.tasks.toggle-status', ['taskId' => (int) $task['id']]) }}" class="inline" id="status-form-{{ (int) $task['id'] }}">
@@ -451,7 +416,7 @@ function updateBatchStatus(task) {
     const statusDiv = document.getElementById(`batch-status-${task.id}`);
     if (!statusDiv) return;
     const createdCount = Number(task.created_count || 0);
-    const articleLimit = Number(task.article_limit || task.draft_limit || 0);
+    const articleLimit = Number(task.article_limit || 0);
     const pendingJobs = Number(task.pending_jobs || 0);
     const runningJobs = Number(task.running_jobs || 0);
     const isRunning = task.batch_status === 'running' || task.batch_status === 'pending';
@@ -468,8 +433,6 @@ function updateBatchStatus(task) {
         } else if (task.batch_status === 'waiting_publish') {
             const nextPublishAt = formatTaskDateTime(task.next_publish_at || task.next_run_at || '');
             statusDiv.innerHTML = `<div class="flex flex-col gap-1 text-xs"><span class="inline-flex w-fit items-center rounded-full border px-2 py-1 bg-cyan-50 text-cyan-700 border-cyan-200">${escapeHtml(TASK_I18N.waitingPublish)}</span>${nextPublishAt ? `<div class="text-gray-500">${escapeHtml(TASK_I18N.nextRunAt.replace('__TIME__', nextPublishAt))}</div>` : ''}</div>`;
-        } else if (task.batch_status === 'draft_pool_full') {
-            statusDiv.innerHTML = `<span class="text-xs text-orange-700 bg-orange-50 px-2 py-1 rounded-full border border-orange-200">${escapeHtml(TASK_I18N.draftPoolFull)}</span>`;
         } else if (task.batch_status === 'limit_reached') {
             statusDiv.innerHTML = `<span class="text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded-full border border-amber-200">${escapeHtml(TASK_I18N.limitReached)}</span>`;
         } else { statusDiv.innerHTML = ''; }
@@ -477,7 +440,7 @@ function updateBatchStatus(task) {
     }
     const stateLabel = task.batch_status === 'pending' ? TASK_I18N.queued : TASK_I18N.running;
     const remainingArticles = Math.max(0, articleLimit - createdCount);
-    const estimatedTime = formatEstimatedTime(remainingArticles * Number(task.publish_interval || 3600));
+    const estimatedTime = formatEstimatedTime(remainingArticles * 10);
     statusDiv.innerHTML = `<div class="flex flex-col gap-1 text-xs"><div class="flex items-center gap-2"><span class="inline-flex items-center rounded-full border px-2 py-0.5 bg-blue-50 text-blue-700 border-blue-200"><i data-lucide="activity" class="h-3 w-3 mr-1"></i>${stateLabel}</span><span class="text-gray-600">${createdCount}/${articleLimit}</span></div><div class="text-gray-500">${TASK_I18N.pendingRunning.replace('__PENDING__', pendingJobs).replace('__RUNNING__', runningJobs)}${remainingArticles > 0 ? ` · ${TASK_I18N.estimated.replace('__TIME__', estimatedTime)}` : ''}</div></div>`;
     renderIcons();
 }
@@ -507,20 +470,15 @@ function updateTaskStatusToggle(taskId, isActive) {
 function updateTaskCounters(task) {
     const createdEl = document.getElementById(`task-created-${task.id}`);
     const publishedEl = document.getElementById(`task-published-${task.id}`);
-    const draftsEl = document.getElementById(`task-drafts-${task.id}`);
     const progressEl = document.getElementById(`task-progress-${task.id}`);
     const loopEl = document.getElementById(`task-loop-${task.id}`);
-    const publishIntervalEl = document.getElementById(`task-publish-interval-${task.id}`);
     const createdCount = Number(task.created_count || task.total_articles || 0);
-    const articleLimit = Math.max(1, Number(task.article_limit || task.draft_limit || 10));
+    const articleLimit = Math.max(1, Number(task.article_limit || 10));
     if (createdEl) {
         createdEl.textContent = TASK_I18N.createdOfLimitLabel.replace('__CREATED__', String(createdCount)).replace('__LIMIT__', String(articleLimit));
     }
     if (publishedEl) {
         publishedEl.textContent = TASK_I18N.publishedArticlesLabel.replace('__COUNT__', String(Number(task.published_articles || 0)));
-    }
-    if (draftsEl) {
-        draftsEl.textContent = TASK_I18N.draftArticlesLabel.replace('__COUNT__', String(Number(task.draft_articles || 0)));
     }
     if (progressEl) {
         const percent = Math.max(0, Math.min(100, Math.floor((createdCount / articleLimit) * 100)));
@@ -528,10 +486,6 @@ function updateTaskCounters(task) {
     }
     if (loopEl) {
         loopEl.textContent = TASK_I18N.loopTimesLabel.replace('__COUNT__', String(Number(task.loop_count || 0)));
-    }
-    if (publishIntervalEl) {
-        const minutes = Math.max(1, Math.ceil(Number(task.publish_interval || 3600) / 60));
-        publishIntervalEl.textContent = TASK_I18N.publishIntervalMinutes.replace('__COUNT__', String(minutes));
     }
 }
 

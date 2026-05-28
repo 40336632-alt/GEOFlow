@@ -21,7 +21,6 @@
         @include('admin.analytics._filters', ['filters' => $filters, 'filterOptions' => $filterOptions])
         @include('admin.analytics._global-overview', ['globalOverview' => $globalOverview])
         @include('admin.analytics._single-site-section')
-        @include('admin.analytics._distribution-section')
         @include('admin.analytics._log-section', ['logSummary' => $logSummary])
     </div>
 @endsection

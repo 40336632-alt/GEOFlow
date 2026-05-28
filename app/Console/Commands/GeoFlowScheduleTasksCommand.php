@@ -88,14 +88,12 @@ class GeoFlowScheduleTasksCommand extends Command
                 continue;
             }
 
-            $articleLimit = max(1, (int) ($task->article_limit ?? $task->draft_limit ?? 10));
-            $draftLimit = max(1, (int) ($task->draft_limit ?? 10));
+            $articleLimit = max(1, (int) ($task->article_limit ?? 10));
             $createdCount = (int) ($task->created_count ?? 0);
             $stats = $articleStats->get($taskId, ['draft_articles' => 0, 'publishable_drafts' => 0]);
-            $draftCount = (int) ($stats['draft_articles'] ?? 0);
             $publishableDrafts = (int) ($stats['publishable_drafts'] ?? 0);
             $nextPublishAt = $task->next_publish_at instanceof Carbon ? $task->next_publish_at : null;
-            $canGenerate = $createdCount < $articleLimit && $draftCount < $draftLimit;
+            $canGenerate = $createdCount < $articleLimit;
             $canPublishNow = $publishableDrafts > 0 && ($nextPublishAt === null || ! $nextPublishAt->greaterThan($now));
 
             if (! $canGenerate && ! $canPublishNow) {

@@ -4,7 +4,6 @@ namespace App\Services\Admin\Analytics;
 
 use App\Models\AiModel;
 use App\Models\Article;
-use App\Models\ArticleDistribution;
 use App\Models\Author;
 use App\Models\Image;
 use App\Models\ImageLibrary;
@@ -77,7 +76,6 @@ class AnalyticsOverviewService
             ->where('status', 'published')
             ->whereBetween('published_at', [$filter->start(), $filter->end()]);
         $taskRuns = $this->filteredTaskRuns($filter);
-        $distributions = $this->filteredDistributions($filter);
 
         return [
             'articles' => (int) $articles->count(),
@@ -85,8 +83,6 @@ class AnalyticsOverviewService
             'running_tasks' => (int) (clone $taskRuns)->where('status', 'running')->count(),
             'failed_tasks' => (int) (clone $taskRuns)->where('status', 'failed')->count(),
             'ai_calls' => (int) AiModel::query()->sum('used_today'),
-            'distribution_failed' => (int) (clone $distributions)->where('status', 'failed')->count(),
-            'distribution_pending' => (int) (clone $distributions)->whereIn('status', ['queued', 'sending'])->count(),
             'total_views' => (int) $this->filteredArticles($filter)->sum('view_count'),
         ];
     }
@@ -171,40 +167,6 @@ class AnalyticsOverviewService
         return [
             'max' => max(1, ...array_column($stages, 'count')),
             'stages' => $stages,
-        ];
-    }
-
-    /**
-     * @return array{total: int, synced: int, failed: int, pending: int, rows: list<array{name: string, total: int, synced: int, failed: int, pending: int}>}
-     */
-    public function distributionSummary(AnalyticsFilter $filter): array
-    {
-        $query = $this->filteredDistributions($filter);
-        $rows = (clone $query)
-            ->join('distribution_channels as dc', 'article_distributions.distribution_channel_id', '=', 'dc.id')
-            ->selectRaw('dc.name as name, COUNT(*) as total')
-            ->selectRaw("SUM(CASE WHEN article_distributions.status = 'synced' THEN 1 ELSE 0 END) as synced")
-            ->selectRaw("SUM(CASE WHEN article_distributions.status = 'failed' THEN 1 ELSE 0 END) as failed")
-            ->selectRaw("SUM(CASE WHEN article_distributions.status IN ('queued', 'sending') THEN 1 ELSE 0 END) as pending")
-            ->groupBy('dc.id', 'dc.name')
-            ->orderByDesc('total')
-            ->limit(8)
-            ->get()
-            ->map(fn ($row): array => [
-                'name' => (string) $row->name,
-                'total' => (int) $row->total,
-                'synced' => (int) $row->synced,
-                'failed' => (int) $row->failed,
-                'pending' => (int) $row->pending,
-            ])
-            ->all();
-
-        return [
-            'total' => (int) $this->filteredDistributions($filter)->count(),
-            'synced' => (int) $this->filteredDistributions($filter)->where('status', 'synced')->count(),
-            'failed' => (int) $this->filteredDistributions($filter)->where('status', 'failed')->count(),
-            'pending' => (int) $this->filteredDistributions($filter)->whereIn('status', ['queued', 'sending'])->count(),
-            'rows' => $rows,
         ];
     }
 
@@ -474,24 +436,6 @@ class AnalyticsOverviewService
 
         if ($filter->taskId !== null) {
             $query->where('task_id', $filter->taskId);
-        }
-
-        return $query;
-    }
-
-    /**
-     * @return Builder<ArticleDistribution>
-     */
-    private function filteredDistributions(AnalyticsFilter $filter): Builder
-    {
-        $query = ArticleDistribution::query()->whereBetween('article_distributions.created_at', [$filter->start(), $filter->end()]);
-
-        if ($filter->channelId !== null) {
-            $query->where('distribution_channel_id', $filter->channelId);
-        }
-
-        if ($filter->articleId !== null) {
-            $query->where('article_id', $filter->articleId);
         }
 
         return $query;

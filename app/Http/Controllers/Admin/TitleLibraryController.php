@@ -82,6 +82,10 @@ class TitleLibraryController extends Controller
             ->whereRaw("COALESCE(NULLIF(model_type, ''), 'chat') = 'chat'")
             ->orderBy('name')
             ->get();
+        $authors = \App\Models\Author::query()
+            ->select(['id', 'name', 'bio'])
+            ->orderBy('name')
+            ->get();
 
         return view('admin.title-libraries.ai-generate', [
             'pageTitle' => __('admin.title_ai_generate.page_title'),
@@ -90,6 +94,7 @@ class TitleLibraryController extends Controller
             'library' => $library,
             'keywordLibraries' => $keywordLibraries,
             'aiModels' => $aiModels,
+            'authors' => $authors,
         ]);
     }
 
@@ -113,6 +118,10 @@ class TitleLibraryController extends Controller
             'title_count' => ['required', 'integer', 'min:1', 'max:50'],
             'title_style' => ['required', 'in:professional,attractive,seo,creative,question'],
             'custom_prompt' => ['nullable', 'string'],
+            'doctor_city' => ['nullable', 'string', 'max:100'],
+            'doctor_topic' => ['nullable', 'string', 'max:200'],
+            'doctor_info' => ['nullable', 'string'],
+            'doctor_extra' => ['nullable', 'string', 'max:200'],
         ], [
             'keyword_library_id.required' => __('admin.title_ai_generate.error.keyword_library_required'),
             'ai_model_id.required' => __('admin.title_ai_generate.error.ai_model_required'),
@@ -142,12 +151,14 @@ class TitleLibraryController extends Controller
             return back()->withErrors(__('admin.title_ai_generate.error.no_keywords'));
         }
 
+        $customPrompt = $this->buildDoctorPrompt($payload);
+
         $generationResult = $this->titleAiGenerationService->generateTitles(
             $aiModel,
             $keywords->all(),
             (int) $payload['title_count'],
             (string) $payload['title_style'],
-            trim((string) ($payload['custom_prompt'] ?? ''))
+            $customPrompt
         );
         $generatedTitles = $generationResult['titles'];
 
@@ -245,8 +256,10 @@ class TitleLibraryController extends Controller
         /** @var array<int, mixed> $rawIds */
         $rawIds = (array) $request->input('title_ids', []);
         $titleIds = collect($rawIds)
+            ->flatMap(static fn (mixed $id): array => str_contains((string) $id, ',') ? explode(',', (string) $id) : [(string) $id])
             ->map(static fn (mixed $id): int => (int) $id)
             ->filter(static fn (int $id): bool => $id > 0)
+            ->unique()
             ->values();
         if ($titleIds->isEmpty()) {
             return back()->withErrors(__('admin.title_detail.error.content_required'));
@@ -561,11 +574,46 @@ class TitleLibraryController extends Controller
     }
 
     /**
+     * 将结构化医生信息字段拼接为自定义提示词。
+     */
+    private function buildDoctorPrompt(array $payload): string
+    {
+        $parts = [];
+
+        $city = trim((string) ($payload['doctor_city'] ?? ''));
+        if ($city !== '') {
+            $parts[] = "城市：{$city}";
+        }
+
+        $topic = trim((string) ($payload['doctor_topic'] ?? ''));
+        if ($topic !== '') {
+            $parts[] = "榜单主题：{$topic}";
+        }
+
+        $doctorInfo = trim((string) ($payload['doctor_info'] ?? ''));
+        if ($doctorInfo !== '') {
+            $parts[] = "医生信息：{$doctorInfo}";
+        }
+
+        $extra = trim((string) ($payload['doctor_extra'] ?? ''));
+        if ($extra !== '') {
+            $parts[] = "补充说明：{$extra}";
+        }
+
+        $customPrompt = trim((string) ($payload['custom_prompt'] ?? ''));
+        if ($customPrompt !== '') {
+            $parts[] = $customPrompt;
+        }
+
+        return implode("\n", $parts);
+    }
+
+    /**
      * 清理 AI 输出中的序号与空白，避免脏数据入库。
      */
     private function normalizeGeneratedTitle(string $title): string
     {
-        $cleaned = preg_replace('/^\d+[\.\)\-、\s]*/u', '', trim($title));
+        $cleaned = preg_replace('/^(?:\d{1,2}[\.\)、]|[\-\*])\s*/u', '', trim($title));
 
         return trim((string) $cleaned);
     }

@@ -6,11 +6,6 @@
     $hasCategories = (bool) ($hasCategories ?? true);
     $categoryCreateUrl = (string) ($categoryCreateUrl ?? route('admin.categories.create'));
     $t = static fn (string $key, array $replace = []): string => __("admin.$key", $replace);
-    $selectedDistributionChannelIds = collect(old('distribution_channel_ids', $taskForm['distribution_channel_ids'] ?? []))
-        ->map(static fn ($id): string => (string) $id)
-        ->all();
-    $publishScope = (string) old('publish_scope', (string) ($taskForm['publish_scope'] ?? 'local_and_distribution'));
-    $distributionChannelsDisabled = $publishScope === 'local_only';
 @endphp
 
 @section('content')
@@ -171,93 +166,6 @@
                     </div>
                 </div>
 
-                <div class="bg-white shadow rounded-lg xl:col-span-6">
-                    <div class="px-6 py-4 border-b border-gray-200">
-                        <h3 class="text-lg font-medium text-gray-900">{{ $t('task_create.section.publish_title') }}</h3>
-                        <p class="mt-1 text-sm text-gray-600">{{ $t('task_create.section.publish_desc') }}</p>
-                    </div>
-                    <div class="px-6 py-4">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <div class="flex items-center">
-                                    <input type="checkbox" name="need_review" id="need_review" @checked((bool) old('need_review', (bool) ($taskForm['need_review'] ?? false)))
-                                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
-                                    <label for="need_review" class="ml-2 block text-sm text-gray-900">{{ $t('task_create.field.need_review') }}</label>
-                                </div>
-                                <p class="mt-1 text-sm text-gray-500">{{ $t('task_create.help.need_review') }}</p>
-                            </div>
-                            <div>
-                                <label for="publish_interval" class="block text-sm font-medium text-gray-700">{{ $t('task_create.field.publish_interval') }}</label>
-                                <input type="number" name="publish_interval" id="publish_interval" min="1" value="{{ old('publish_interval', (string) ($taskForm['publish_interval'] ?? 60)) }}"
-                                       class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                                <p class="mt-1 text-sm text-gray-500">{{ $t('task_create.help.publish_interval') }}</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-white shadow rounded-lg xl:col-span-12">
-                    <div class="px-6 py-4 border-b border-gray-200">
-                        <h3 class="text-lg font-medium text-gray-900">{{ $t('task_create.section.distribution_title') }}</h3>
-                        <p class="mt-1 text-sm text-gray-600">{{ $t('task_create.section.distribution_desc') }}</p>
-                    </div>
-                    <div class="px-6 py-4">
-                        <fieldset class="mb-5">
-                            <legend class="text-sm font-medium text-gray-900">{{ $t('task_create.distribution.scope_title') }}</legend>
-                            <p class="mt-1 text-sm text-gray-500">{{ $t('task_create.distribution.scope_help') }}</p>
-                            <div class="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-3">
-                                <label class="flex cursor-pointer gap-3 rounded-md border border-gray-200 px-4 py-3 text-sm hover:border-blue-300 hover:bg-blue-50">
-                                    <input type="radio" name="publish_scope" value="local_and_distribution" @checked($publishScope === 'local_and_distribution') data-publish-scope-option class="mt-1 h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
-                                    <span>
-                                        <span class="block font-medium text-gray-900">{{ $t('task_create.distribution.scope_local_and_distribution') }}</span>
-                                        <span class="block text-gray-500">{{ $t('task_create.distribution.scope_local_and_distribution_desc') }}</span>
-                                    </span>
-                                </label>
-                                <label class="flex cursor-pointer gap-3 rounded-md border border-gray-200 px-4 py-3 text-sm hover:border-blue-300 hover:bg-blue-50">
-                                    <input type="radio" name="publish_scope" value="distribution_only" @checked($publishScope === 'distribution_only') data-publish-scope-option class="mt-1 h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
-                                    <span>
-                                        <span class="block font-medium text-gray-900">{{ $t('task_create.distribution.scope_distribution_only') }}</span>
-                                        <span class="block text-gray-500">{{ $t('task_create.distribution.scope_distribution_only_desc') }}</span>
-                                    </span>
-                                </label>
-                                <label class="flex cursor-pointer gap-3 rounded-md border border-gray-200 px-4 py-3 text-sm hover:border-blue-300 hover:bg-blue-50">
-                                    <input type="radio" name="publish_scope" value="local_only" @checked($publishScope === 'local_only') data-publish-scope-option class="mt-1 h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
-                                    <span>
-                                        <span class="block font-medium text-gray-900">{{ $t('task_create.distribution.scope_local_only') }}</span>
-                                        <span class="block text-gray-500">{{ $t('task_create.distribution.scope_local_only_desc') }}</span>
-                                    </span>
-                                </label>
-                            </div>
-                        </fieldset>
-
-                        @if (empty($formOptions['distributionChannels']))
-                            <div class="rounded-md bg-gray-50 px-4 py-3 text-sm text-gray-600">
-                                {{ $t('task_create.distribution.empty') }}
-                                <a href="{{ route('admin.distribution.create') }}" class="font-medium text-blue-600 hover:text-blue-700">{{ $t('task_create.distribution.create_link') }}</a>
-                            </div>
-                        @else
-                            <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                                @foreach ($formOptions['distributionChannels'] as $channel)
-                                    @php($channelId = (string) $channel['id'])
-                                    <label data-distribution-channel-card @class([
-                                        'flex items-start gap-3 rounded-md border border-gray-200 px-4 py-3 text-sm transition',
-                                        'cursor-pointer hover:border-blue-300 hover:bg-blue-50' => ! $distributionChannelsDisabled,
-                                        'cursor-not-allowed bg-gray-50 opacity-50' => $distributionChannelsDisabled,
-                                    ])>
-                                        <input type="checkbox" name="distribution_channel_ids[]" value="{{ $channelId }}" @checked(! $distributionChannelsDisabled && in_array($channelId, $selectedDistributionChannelIds, true)) @disabled($distributionChannelsDisabled) data-distribution-channel-input
-                                               class="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50">
-                                        <span class="min-w-0">
-                                            <span class="block font-medium text-gray-900">{{ $channel['name'] }}</span>
-                                            <span class="block break-all text-gray-500">{{ $channel['domain'] }}</span>
-                                        </span>
-                                    </label>
-                                @endforeach
-                            </div>
-                            <p class="mt-3 text-sm text-gray-500">{{ $t('task_create.distribution.help') }}</p>
-                        @endif
-                    </div>
-                </div>
-
                 <div class="bg-white shadow rounded-lg xl:col-span-12">
                     <div class="px-6 py-4 border-b border-gray-200">
                         <h3 class="text-lg font-medium text-gray-900">{{ $t('task_create.section.geo_title') }}</h3>
@@ -402,18 +310,12 @@
                         <p class="mt-1 text-sm text-gray-600">{{ $t('task_create.section.advanced_desc') }}</p>
                     </div>
                     <div class="px-6 py-4">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="grid grid-cols-1 gap-6">
                             <div>
                                 <label for="article_limit" class="block text-sm font-medium text-gray-700">{{ $t('task_create.field.article_limit') }}</label>
                                 <input type="number" name="article_limit" id="article_limit" min="1" value="{{ old('article_limit', (string) ($taskForm['article_limit'] ?? 10)) }}"
                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
                                 <p class="mt-1 text-sm text-gray-500">{{ $t('task_create.help.article_limit') }}</p>
-                            </div>
-                            <div>
-                                <label for="draft_limit" class="block text-sm font-medium text-gray-700">{{ $t('task_create.field.draft_limit') }}</label>
-                                <input type="number" name="draft_limit" id="draft_limit" min="1" value="{{ old('draft_limit', (string) ($taskForm['draft_limit'] ?? 10)) }}"
-                                       class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                                <p class="mt-1 text-sm text-gray-500">{{ $t('task_create.help.draft_limit') }}</p>
                             </div>
                             <div>
                                 <div class="flex items-center">
@@ -452,15 +354,11 @@
 
             const imageLibrarySelect = document.getElementById('image_library_id');
             const imageCountSelect = document.getElementById('image_count');
-            const needReviewCheckbox = document.getElementById('need_review');
-            const publishIntervalInput = document.getElementById('publish_interval');
             const articleLimitInput = document.getElementById('article_limit');
             const draftLimitInput = document.getElementById('draft_limit');
             const fixedCategorySection = document.getElementById('fixed-category-section');
             const fixedCategorySelect = document.getElementById('fixed_category_id');
             const categoryModeRadios = document.querySelectorAll('input[name="category_mode"]');
-            const publishScopeRadios = document.querySelectorAll('[data-publish-scope-option]');
-            const distributionChannelInputs = document.querySelectorAll('[data-distribution-channel-input]');
             const geoCheckbox = document.getElementById('enable_geo_optimization');
             const geoDatasetSection = document.getElementById('geo-dataset-section');
             const geoEngineSection = document.getElementById('geo-engine-section');
@@ -479,16 +377,6 @@
                     if (imageCountSelect.value === '0') {
                         imageCountSelect.value = '1';
                     }
-                }
-            }
-
-            function togglePublishInterval() {
-                if (needReviewCheckbox.checked) {
-                    publishIntervalInput.disabled = true;
-                    publishIntervalInput.parentElement.style.opacity = '0.5';
-                } else {
-                    publishIntervalInput.disabled = false;
-                    publishIntervalInput.parentElement.style.opacity = '1';
                 }
             }
 
@@ -526,35 +414,9 @@
                 }
             }
 
-            function syncDistributionChannelsByScope() {
-                const selectedScope = document.querySelector('input[name="publish_scope"]:checked');
-                const isLocalOnly = selectedScope && selectedScope.value === 'local_only';
-
-                distributionChannelInputs.forEach((input) => {
-                    input.disabled = isLocalOnly;
-                    if (isLocalOnly) {
-                        input.checked = false;
-                    }
-
-                    const card = input.closest('[data-distribution-channel-card]');
-                    if (!card) {
-                        return;
-                    }
-
-                    card.classList.toggle('cursor-pointer', !isLocalOnly);
-                    card.classList.toggle('hover:border-blue-300', !isLocalOnly);
-                    card.classList.toggle('hover:bg-blue-50', !isLocalOnly);
-                    card.classList.toggle('cursor-not-allowed', isLocalOnly);
-                    card.classList.toggle('bg-gray-50', isLocalOnly);
-                    card.classList.toggle('opacity-50', isLocalOnly);
-                });
-            }
-
             imageLibrarySelect.addEventListener('change', toggleImageCountByLibrary);
-            needReviewCheckbox.addEventListener('change', togglePublishInterval);
             articleLimitInput.addEventListener('input', syncDraftLimitMax);
             categoryModeRadios.forEach((radio) => radio.addEventListener('change', handleCategoryModeChange));
-            publishScopeRadios.forEach((radio) => radio.addEventListener('change', syncDistributionChannelsByScope));
             geoCheckbox.addEventListener('change', toggleGeoSections);
 
             form.addEventListener('submit', function (event) {
@@ -594,10 +456,8 @@
             });
 
             toggleImageCountByLibrary();
-            togglePublishInterval();
             handleCategoryModeChange();
             syncDraftLimitMax();
-            syncDistributionChannelsByScope();
             toggleGeoSections();
         });
     </script>
