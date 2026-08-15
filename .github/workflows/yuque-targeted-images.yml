@@ -1,0 +1,31 @@
+name: Yuque targeted images
+
+on:
+  push:
+    branches:
+      - codex/yuque-ingest-temp
+    paths:
+      - '.github/workflows/yuque-targeted-images.yml'
+      - 'tools/yuque_targeted_images.py'
+  workflow_dispatch:
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: |
+          pip install playwright requests pillow
+          python -m playwright install --with-deps chromium
+      - name: Recover target images
+        run: python tools/yuque_targeted_images.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: yuque-targeted-images
+          path: targeted_images/
+          retention-days: 3
