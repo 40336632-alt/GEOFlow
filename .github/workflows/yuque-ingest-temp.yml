@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/yuque-ingest-temp.yml'
       - 'tools/yuque_ingest.py'
+      - 'tools/yuque_image_fetch.py'
   workflow_dispatch:
 
 jobs:
@@ -22,19 +23,35 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install Playwright
+      - name: Install crawler dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install playwright
+          pip install playwright requests beautifulsoup4 pillow
           python -m playwright install --with-deps chromium
 
       - name: Crawl Yuque
         run: python tools/yuque_ingest.py
 
+      - name: Download article images
+        run: |
+          python tools/yuque_image_fetch.py
+          python - <<'PY'
+          import json
+          print(json.load(open('yuque_dump/_images/manifest.json', encoding='utf-8')))
+          PY
+
+      - name: Repack crawl with images
+        run: |
+          rm -f yuque_dump.zip
+          python - <<'PY'
+          import shutil
+          shutil.make_archive('yuque_dump', 'zip', 'yuque_dump')
+          PY
+
       - name: Upload crawl artifact
         uses: actions/upload-artifact@v4
         with:
-          name: yuque-dump
+          name: yuque-dump-with-images
           path: |
             yuque_dump/
             yuque_dump.zip
