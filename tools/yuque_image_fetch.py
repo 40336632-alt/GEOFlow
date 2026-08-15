@@ -2,7 +2,7 @@ import hashlib
 import io
 import json
 import mimetypes
-import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -18,9 +18,7 @@ STORE.mkdir(parents=True, exist_ok=True)
 PAGES.mkdir(parents=True, exist_ok=True)
 
 UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/127 Safari/537.36'
-S = requests.Session()
-S.headers.update({'User-Agent': UA, 'Referer': 'https://www.yuque.com/'})
-
+HEADERS = {'User-Agent': UA, 'Referer': 'https://www.yuque.com/'}
 EXCLUDE_PATTERNS = [
     'avatar', 'emoji', 'logo', 'favicon', 'icon',
     'w_16', 'w_24', 'w_32', 'w_40', 'w_48', 'w_56', 'w_64', 'w_72', 'w_80', 'w_96',
@@ -51,34 +49,34 @@ def looks_content_url(url):
 def ext_for(resp, fmt):
     ct = (resp.headers.get('content-type') or '').split(';')[0].strip().lower()
     ext = mimetypes.guess_extension(ct) if ct else None
-    if ext == '.jpe': ext = '.jpg'
-    if ext in {'.png','.jpg','.jpeg','.webp','.gif','.bmp','.tiff'}:
+    if ext == '.jpe':
+        ext = '.jpg'
+    if ext in {'.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.tiff'}:
         return '.jpg' if ext == '.jpeg' else ext
     fm = (fmt or '').lower()
-    return { 'jpeg':'.jpg', 'png':'.png', 'webp':'.webp', 'gif':'.gif', 'bmp':'.bmp', 'tiff':'.tiff' }.get(fm, '.img')
+    return {'jpeg': '.jpg', 'png': '.png', 'webp': '.webp', 'gif': '.gif', 'bmp': '.bmp', 'tiff': '.tiff'}.get(fm, '.img')
 
 
 def download(url):
-    r = S.get(url, timeout=25)
-    r.raise_for_status()
-    data = r.content
-    if len(data) < 2048:
-        return None
     try:
+        r = requests.get(url, headers=HEADERS, timeout=(8, 20))
+        r.raise_for_status()
+        data = r.content
+        if len(data) < 2048:
+            return url, None
         im = Image.open(io.BytesIO(data))
         w, h = im.size
         fmt = im.format
-    except Exception:
-        return None
-    # remove avatars, decorative dots and tiny UI; keep charts/screenshots and document figures
-    if max(w, h) < 220 or min(w, h) < 90:
-        return None
-    sha = hashlib.sha256(data).hexdigest()
-    ext = ext_for(r, fmt)
-    out = STORE / f'{sha}{ext}'
-    if not out.exists():
-        out.write_bytes(data)
-    return {'sha256': sha, 'file': str(out), 'width': w, 'height': h, 'bytes': len(data), 'url': url}
+        if max(w, h) < 220 or min(w, h) < 90:
+            return url, None
+        sha = hashlib.sha256(data).hexdigest()
+        ext = ext_for(r, fmt)
+        out = STORE / f'{sha}{ext}'
+        if not out.exists():
+            out.write_bytes(data)
+        return url, {'sha256': sha, 'file': str(out), 'width': w, 'height': h, 'bytes': len(data), 'url': url}
+    except Exception as e:
+        return url, {'error': repr(e), 'url': url}
 
 
 def page_candidates(html):
@@ -91,57 +89,69 @@ def page_candidates(html):
             pass
     if not roots:
         roots = [soup.body or soup]
-    seen = set(); urls = []
+    seen, urls = set(), []
     for root in roots:
         for img in root.find_all('img'):
             src = normalize_src(img)
             if src and src not in seen and looks_content_url(src):
-                seen.add(src); urls.append(src)
+                seen.add(src)
+                urls.append(src)
     return urls
 
 
 def main():
-    global_cache = {}
-    total_refs = 0
-    pages_with_images = 0
+    page_map = []
+    all_urls = set()
     for repo_dir in [p for p in ROOT.iterdir() if p.is_dir() and not p.name.startswith('_')]:
-        outdir = PAGES / repo_dir.name
-        outdir.mkdir(parents=True, exist_ok=True)
         for html_path in sorted(repo_dir.glob('*.html')):
             if html_path.name.startswith('_root_'):
                 continue
-            html = html_path.read_text(encoding='utf-8', errors='ignore')
-            urls = page_candidates(html)
-            items = []
-            for url in urls:
-                if url not in global_cache:
-                    try:
-                        global_cache[url] = download(url)
-                    except Exception as e:
-                        global_cache[url] = {'error': repr(e), 'url': url}
-                item = global_cache[url]
-                if item and 'file' in item:
-                    items.append(item)
-            slug = html_path.name.split('__', 1)[0]
-            meta = {
-                'repo': repo_dir.name,
-                'page_html': str(html_path),
-                'candidate_urls': len(urls),
-                'kept_images': len(items),
-                'images': items,
-            }
-            (outdir / f'{slug}.json').write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding='utf-8')
-            if items:
-                pages_with_images += 1
-                total_refs += len(items)
-            print(f'IMAGES {repo_dir.name}/{slug}: candidates={len(urls)} kept={len(items)}', flush=True)
+            urls = page_candidates(html_path.read_text(encoding='utf-8', errors='ignore'))
+            page_map.append((repo_dir.name, html_path, urls))
+            all_urls.update(urls)
+
+    print(f'UNIQUE_CANDIDATES {len(all_urls)} across {len(page_map)} pages', flush=True)
+    cache = {}
+    done = 0
+    with ThreadPoolExecutor(max_workers=20) as ex:
+        futs = {ex.submit(download, u): u for u in all_urls}
+        for fut in as_completed(futs):
+            url, item = fut.result()
+            cache[url] = item
+            done += 1
+            if done % 50 == 0 or done == len(all_urls):
+                kept = sum(1 for v in cache.values() if v and 'file' in v)
+                print(f'DOWNLOAD_PROGRESS {done}/{len(all_urls)} kept={kept}', flush=True)
+
+    total_refs = 0
+    pages_with_images = 0
+    for repo, html_path, urls in page_map:
+        outdir = PAGES / repo
+        outdir.mkdir(parents=True, exist_ok=True)
+        items = [cache[u] for u in urls if cache.get(u) and 'file' in cache[u]]
+        slug = html_path.name.split('__', 1)[0]
+        meta = {
+            'repo': repo,
+            'page_html': str(html_path),
+            'candidate_urls': len(urls),
+            'kept_images': len(items),
+            'images': items,
+        }
+        (outdir / f'{slug}.json').write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding='utf-8')
+        if items:
+            pages_with_images += 1
+            total_refs += len(items)
+        print(f'IMAGES {repo}/{slug}: candidates={len(urls)} kept={len(items)}', flush=True)
 
     store_files = list(STORE.iterdir())
+    errors = [v for v in cache.values() if v and 'error' in v]
     manifest = {
+        'unique_candidate_urls': len(all_urls),
         'unique_downloaded_images': len(store_files),
         'pages_with_images': pages_with_images,
         'page_image_references': total_refs,
         'store_bytes': sum(p.stat().st_size for p in store_files),
+        'download_errors': len(errors),
     }
     (IMG_ROOT / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8')
     print(json.dumps(manifest, ensure_ascii=False, indent=2), flush=True)
